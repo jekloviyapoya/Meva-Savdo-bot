@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Hodimlar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Hodimlar va yetkazib beruvchilar</h1>
+    <p class="sub">Rolni o'zgartirsangiz, hodim botda darhol yangi menyuni ko'radi.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Botdagi foydalanuvchilar</h2>
+  {% if users %}
+  <table>
+    <tr><th>Ismi</th><th>Login (telefon)</th><th>Botga ulangan</th><th>Holati</th><th>Roli</th></tr>
+    {% for u in users %}
+    <tr>
+      <td><strong>{{ u.full_name }}</strong></td>
+      <td class="num">{{ u.phone or '—' }}</td>
+      <td>{% if u.tg_id %}<span class="badge ok">ha</span>{% else %}<span class="badge warn">yo'q</span>{% endif %}</td>
+      <td><span class="badge {% if u.status.value == 'approved' %}ok{% else %}warn{% endif %}">{{ u.status.value }}</span></td>
+      <td>
+        <form method="post" action="/staff/{{ u.id }}/role" class="inline-form">
+          <select name="role">
+            {% for r in roles %}<option value="{{ r }}" {% if r == u.role.value %}selected{% endif %}>{{ r }}</option>{% endfor %}
+          </select>
+          <button class="btn ghost sm" type="submit">Saqlash</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="empty">Foydalanuvchilar yo'q.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Taklif havolalari</h2>
+  <p class="sub" style="margin-bottom:12px">Havola faqat shu biznesga qo'shadi. Har bir ariza tasdiqlashga keladi.</p>
+  <form method="post" action="/staff/invite" class="form-row" style="margin-bottom:16px">
+    <div class="field-sm"><label for="i-role">Kim uchun</label>
+      <select id="i-role" name="role" style="width:100%">
+        <option value="seller">Sotuvchi</option>
+        <option value="admin">Admin</option>
+        <option value="customer">Mijoz</option>
+      </select>
+    </div>
+    <button class="btn" type="submit">Havola yaratish</button>
+  </form>
+  {% if invites %}
+  <table>
+    <tr><th>Rol</th><th>Havola</th><th class="right">Foydalanilgan</th></tr>
+    {% for i in invites %}
+    <tr><td>{{ i.role }}</td><td class="num" style="word-break:break-all">{{ i.link }}</td><td class="right num">{{ i.uses }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="empty">Hali havola yaratilmagan.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Yetkazib beruvchilar</h2>
+  <form method="post" action="/suppliers/add" class="form-row" style="margin-bottom:16px">
+    <div class="field"><label for="s-name">Nomi</label><input id="s-name" name="name" required style="width:100%"></div>
+    <div class="field-sm"><label for="s-phone">Telefon</label><input id="s-phone" name="phone" style="width:100%"></div>
+    <button class="btn" type="submit">Qo'shish</button>
+  </form>
+  {% if suppliers %}
+  <table>
+    <tr><th>Nomi</th><th>Telefon</th></tr>
+    {% for s in suppliers %}
+    <tr><td><strong>{{ s.name }}</strong></td><td class="num">{{ s.phone or '—' }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="empty">Yetkazib beruvchi qo'shilmagan.</p>{% endif %}
+</div>
+{% endblock %}

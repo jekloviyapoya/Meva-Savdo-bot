@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Litsenziya{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Litsenziya</h1>
+    <p class="sub">Bot oylik obuna asosida ishlaydi. Muddat tugasa savdo boti to'xtaydi.</p>
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-label">Holati</div>
+    <div class="metric-value">{% if shop.license_ok %}Faol{% else %}To'xtatilgan{% endif %}</div>
+    <div class="metric-note">{{ shop.name }} · <span class="num">{{ shop.code }}</span></div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Amal qilish muddati</div>
+    <div class="metric-value num">{{ shop.license_until.strftime('%d.%m.%Y') if shop.license_until else '—' }}</div>
+    <div class="metric-note">{{ shop.days_left if shop.days_left > 0 else 0 }} kun qoldi</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Oylik to'lov</div>
+    <div class="metric-value num">{{ price|money }}</div>
+    <div class="metric-note">so'm / oy</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>To'lov</h2>
+  <p class="sub">To'lov kartasi: <strong>{{ card or '—' }}</strong></p>
+  <p class="sub">To'lovni amalga oshirib chekni admin botga yuboring — obuna muddati uzaytiriladi.</p>
+</div>
+
+<div class="card">
+  <h2>Dasturchi</h2>
+  <p class="sub">{{ AUTHOR }} — {{ COMPANY }}. Versiya {{ VERSION }}.</p>
+</div>
+{% endblock %}

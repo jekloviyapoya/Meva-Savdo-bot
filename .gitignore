@@ -1,0 +1,22 @@
+# Maxfiy sozlamalar — hech qachon repoga tushmasin
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Baza va loglar
+*.db
+*.sqlite3
+*.log
+
+# Muharrir
+.vscode/
+.idea/
+.DS_Store

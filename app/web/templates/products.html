@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Mahsulotlar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Mahsulotlar</h1>
+    <p class="sub">Narxni istalgan vaqtda shu yerdan o'zgartiring — narx yaratishda majburiy emas.</p>
+  </div>
+  <form method="get" class="inline-form">
+    <input name="q" value="{{ q }}" placeholder="Nomi bo'yicha qidirish" aria-label="Qidirish">
+    <button class="btn ghost sm" type="submit">Qidirish</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Yangi mahsulot</h2>
+  <form method="post" action="/products/add" class="form-row">
+    <div class="field"><label for="p-name">Nomi</label><input id="p-name" name="name" required style="width:100%"></div>
+    <div class="field-sm"><label for="p-price">Narxi (ixtiyoriy)</label><input id="p-price" name="price" inputmode="decimal" style="width:100%"></div>
+    <div class="field-sm"><label for="p-unit">Birlik</label>
+      <select id="p-unit" name="unit" style="width:100%">{% for u in units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}</select>
+    </div>
+    <div class="field"><label for="p-sup">Yetkazib beruvchi</label>
+      <select id="p-sup" name="supplier_id" style="width:100%">
+        <option value="">— tanlanmagan —</option>
+        {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="btn" type="submit">Qo'shish</button>
+  </form>
+</div>
+
+<div class="card">
+  {% if products %}
+  <table>
+    <tr><th>Nomi</th><th>Birlik</th><th>Yetkazib beruvchi</th><th class="right">Qoldiq</th><th>Narx</th><th></th></tr>
+    {% for p in products %}
+    <tr>
+      <td><strong>{{ p.name }}</strong></td>
+      <td>{{ p.unit.value }}</td>
+      <td>{{ p.supplier.name if p.supplier else '—' }}</td>
+      <td class="right num">{{ p.stock }}</td>
+      <td>
+        <form method="post" action="/products/{{ p.id }}/price" class="inline-form">
+          <input name="price" class="num" style="width:120px" value="{{ p.price or '' }}" placeholder="narx yo'q" inputmode="decimal">
+          <button class="btn ghost sm" type="submit">Saqlash</button>
+        </form>
+      </td>
+      <td class="right">
+        <form method="post" action="/products/{{ p.id }}/delete" class="inline-form">
+          <button class="btn danger sm" type="submit">O'chirish</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="empty">Mahsulot topilmadi. Yuqoridagi shakl orqali birinchisini qo'shing.</p>{% endif %}
+</div>
+{% endblock %}

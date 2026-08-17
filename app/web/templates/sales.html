@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Savdolar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Savdolar</h1>
+    <p class="sub">Bot orqali yopilgan barcha savdolar.</p>
+  </div>
+</div>
+<div class="card">
+  {% if sales %}
+  <table>
+    <tr><th>#</th><th>Sana</th><th>Mijoz</th><th>Sotuvchi</th><th>To'lov turi</th><th>Mahsulotlar</th><th class="right">Jami</th><th class="right">To'landi</th><th class="right">Qarz</th></tr>
+    {% for s in sales %}
+    <tr>
+      <td class="num">{{ s.id }}</td>
+      <td class="num">{{ s.created_at.strftime('%d.%m %H:%M') }}</td>
+      <td>{{ s.customer.name if s.customer else 'Tezkor savdo' }}</td>
+      <td>{{ s.seller_name or '—' }}</td>
+      <td>{{ s.payment_method.name if s.payment_method else '—' }}</td>
+      <td>{% for i in s.items %}{{ i.name }} × {{ i.qty }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+      <td class="right num">{{ s.total|money }}</td>
+      <td class="right num">{{ s.paid|money }}</td>
+      <td class="right num">{{ s.debt|money }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="empty">Savdolar yo'q.</p>{% endif %}
+</div>
+{% endblock %}

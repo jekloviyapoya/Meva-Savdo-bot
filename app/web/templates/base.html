@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Savdo paneli{% endblock %} — {{ shop.name if shop else 'NM GROUP' }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">{{ shop.name if shop else 'Savdo paneli' }}<span>{{ COMPANY }}</span></div>
+    <a class="nav-link {% if active=='dash' %}active{% endif %}" href="/">Bosh sahifa</a>
+    <a class="nav-link {% if active=='orders' %}active{% endif %}" href="/orders">Buyurtmalar</a>
+    <a class="nav-link {% if active=='sales' %}active{% endif %}" href="/sales">Savdolar</a>
+    <a class="nav-link {% if active=='products' %}active{% endif %}" href="/products">Mahsulotlar</a>
+    <a class="nav-link {% if active=='customers' %}active{% endif %}" href="/customers">Mijozlar</a>
+    <a class="nav-link {% if active=='staff' %}active{% endif %}" href="/staff">Hodimlar</a>
+    <a class="nav-link {% if active=='license' %}active{% endif %}" href="/license">Litsenziya</a>
+    <a class="nav-link" href="/logout">Chiqish</a>
+    <div class="sidebar-foot">
+      {% if me %}<div style="margin-bottom:8px;color:#a9b6c2">{{ me.full_name }} · {{ me.role.value }}</div>{% endif %}
+      Dasturchi<br><strong style="color:#e6ebef">{{ AUTHOR }}</strong><br>{{ COMPANY }} · v{{ VERSION }}
+    </div>
+  </aside>
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>
