@@ -33,12 +33,13 @@ def enabled(name: str, default: bool = True) -> bool:
 
 
 async def run_sales_bot() -> None:
-    from app.bot.main import build_dispatcher
+    from app.bot.main import build_dispatcher, setup_menu_button
 
     bot = Bot(settings.bot_token,
               default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = build_dispatcher()
     await bot.delete_webhook(drop_pending_updates=True)
+    await setup_menu_button(bot)
     log.info("Savdo boti ishga tushdi")
     await dp.start_polling(bot, handle_signals=False)
 

@@ -190,6 +190,7 @@ class Product(Base):
     price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)  # ixtiyoriy
     unit: Mapped[Unit] = mapped_column(Enum(Unit), default=Unit.DONA)
     photo_file_id: Mapped[str | None] = mapped_column(String(255))
+    photo_url: Mapped[str | None] = mapped_column(String(500))  # web app orqali yuklangan rasm
     supplier_id: Mapped[int | None] = mapped_column(ForeignKey("suppliers.id", ondelete="SET NULL"))
     stock: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -222,6 +223,7 @@ class Customer(Base):
     phone: Mapped[str | None] = mapped_column(String(32), index=True)
     address: Mapped[str | None] = mapped_column(Text)
     photo_file_id: Mapped[str | None] = mapped_column(String(255))
+    photo_url: Mapped[str | None] = mapped_column(String(500))
     note: Mapped[str | None] = mapped_column(Text)
     # balans > 0  => mijoz qarzdor;  balans < 0 => oldindan to'lagan
     balance: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0)

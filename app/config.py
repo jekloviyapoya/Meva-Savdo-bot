@@ -24,11 +24,21 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/nm_savdo"
 
+    webapp_url: str = ""      # Mini App manzili, masalan https://xxx.up.railway.app
+    media_dir: str = "media"  # yuklangan rasmlar papkasi
     web_secret: str = "change-me"
     web_admin_login: str = "admin"
     web_admin_password: str = "admin12345"
     web_host: str = "0.0.0.0"
     web_port: int = 8000
+
+    @property
+    def public_url(self) -> str:
+        """Railway domenini o'zi topadi, aks holda WEBAPP_URL ishlatiladi."""
+        if self.webapp_url:
+            return self.webapp_url.rstrip("/")
+        domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+        return f"https://{domain}" if domain else ""
 
     @property
     def async_database_url(self) -> str:

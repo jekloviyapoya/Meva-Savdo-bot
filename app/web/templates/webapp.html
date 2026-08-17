@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Savdo</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="topbar" id="topbar" hidden>
+    <div class="topbar-main">
+      <div class="shop-name" id="shopName">…</div>
+      <div class="shop-sub" id="shopSub"></div>
+    </div>
+    <button class="chip" id="shopSwitch" hidden>🔄</button>
+  </header>
+
+  <main id="view">
+    <div class="loading"><div class="spinner"></div></div>
+  </main>
+
+  <nav class="tabbar" id="tabbar" hidden></nav>
+
+  <div class="sheet-backdrop" id="backdrop" hidden></div>
+  <section class="sheet" id="sheet" hidden></section>
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

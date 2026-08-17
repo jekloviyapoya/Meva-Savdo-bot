@@ -71,6 +71,21 @@ yangilaydi. Yangi biznes 14 kunlik sinov muddati bilan ochiladi.
 
 ---
 
+## Telegram Mini App
+
+Barcha ish botning yozishmasida emas, **Telegram ichidagi ilovada** bajariladi.
+Botga `/start` yuborilsa «🚀 Ilovani ochish» tugmasi chiqadi; pastdagi *Menu*
+tugmasi ham shu ilovaga bog'lanadi.
+
+Ilova ichida: bosh sahifa (kunlik aylanma, qarz lentasi), savdo (POS savati),
+buyurtmalar, mahsulotlar, mijozlar va ularning kirim-chiqimi, hodimlar va
+taklif havolalari, hisobot, obuna. Mijozlarga esa katalog, buyurtma berish,
+xaridlar tarixi va balans ko'rinadi.
+
+Xavfsizlik: har bir so'rov Telegram `initData` imzosi bilan tekshiriladi
+(bot tokeni orqali HMAC-SHA256), imzosiz yoki soxta so'rov rad etiladi.
+Brauzerdan kirish uchun eski panel `/login` da qoladi.
+
 ## O'rnatish
 
 ```bash
@@ -93,6 +108,7 @@ createdb nm_savdo
 |---|---|
 | `BOT_TOKEN` | savdo boti tokeni (@BotFather) |
 | `BOT_USERNAME` | savdo botining useri — taklif havolalari shundan yasaladi |
+| `WEBAPP_URL` | Mini App manzili, Railway domeni (https://...) |
 | `LICENSE_BOT_TOKEN` | admin bot tokeni |
 | `SUPER_ADMIN_IDS` | bizneslarni ro'yxatga oladigan Telegram ID lar, vergul bilan |
 | `DATABASE_URL` | `postgresql+asyncpg://user:parol@host:5432/nm_savdo` |

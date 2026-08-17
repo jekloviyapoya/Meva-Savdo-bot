@@ -26,11 +26,17 @@ from app.services import (
     apply_balance, belongs_to, create_invite, find_login, invite_link, money,
     parse_amount, verify_password,
 )
+from app.web.api import router as api_router
 
 BASE_DIR = Path(__file__).parent
-app = FastAPI(title="Savdo paneli — NM GROUP")
+MEDIA_DIR = Path(settings.media_dir)
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+app = FastAPI(title="Savdo tizimi — NM GROUP")
 app.add_middleware(SessionMiddleware, secret_key=settings.web_secret)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+app.include_router(api_router)
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.filters["money"] = money
@@ -63,6 +69,18 @@ async def current(request: Request, session: AsyncSession) -> Ctx | None:
     if not shop:
         return None
     return Ctx(shop, user)
+
+
+@app.get("/app", response_class=HTMLResponse)
+@app.get("/webapp", response_class=HTMLResponse)
+async def mini_app(request: Request):
+    """Telegram Mini App — botdagi barcha amallar shu yerda bajariladi."""
+    return templates.TemplateResponse(request, "webapp.html", {})
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True, "app": "nm-savdo", "version": VERSION}
 
 
 @app.on_event("startup")
