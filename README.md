@@ -100,15 +100,40 @@ createdb nm_savdo
 
 ## Ishga tushirish
 
-Uchta jarayon alohida ishlaydi:
+Bitta buyruq — uchala xizmat birga ishlaydi:
+
+```bash
+python main.py
+```
+
+Yoki alohida-alohida:
 
 ```bash
 python run_bot.py          # savdo boti
-python run_license_bot.py  # litsenziya boti
+python run_license_bot.py  # admin bot
 python run_web.py          # web panel -> http://localhost:8000
 ```
 
 Jadvallar birinchi ishga tushishda avtomatik yaratiladi.
+
+### Railway'ga joylash
+
+1. Railway'da loyiha yarating → **Deploy from GitHub repo**
+2. Xuddi shu loyihaga **PostgreSQL** qo'shing (New → Database → PostgreSQL).
+   Railway `DATABASE_URL` ni o'zi ulaydi, kod uni asyncpg formatiga o'giradi.
+3. **Variables** bo'limiga qo'ying:
+   `BOT_TOKEN`, `BOT_USERNAME`, `LICENSE_BOT_TOKEN`, `SUPER_ADMIN_IDS`, `WEB_SECRET`
+4. Deploy avtomatik boshlanadi. Start buyrug'i `railway.json` da yozilgan: `python main.py`
+5. Web panelga kirish uchun **Settings → Networking → Generate Domain**
+
+Xizmatlarni ajratmoqchi bo'lsangiz, bitta repodan bir nechta service yarating va
+har biriga mos o'zgaruvchini bering:
+
+| Service | O'zgaruvchi |
+|---|---|
+| Web | `RUN_BOT=false`, `RUN_LICENSE_BOT=false` |
+| Savdo boti | `RUN_WEB=false`, `RUN_LICENSE_BOT=false` |
+| Admin bot | `RUN_WEB=false`, `RUN_BOT=false` |
 
 ### Birinchi qadamlar
 1. Admin botga `/start` yuboring — u sizning Telegram ID ingizni ko'rsatadi,
@@ -140,6 +165,7 @@ WantedBy=multi-user.target
 ## Tuzilishi
 
 ```
+main.py            hammasini birga ishga tushiradi (Railway shuni chaqiradi)
 app/
   config.py        sozlamalar (.env)
   db.py            baza ulanishi

@@ -415,7 +415,7 @@ async def license_page(request: Request, session: AsyncSession = Depends(get_ses
 
 def run():
     import uvicorn
-    uvicorn.run("app.web.main:app", host=settings.web_host, port=settings.web_port)
+    uvicorn.run("app.web.main:app", host=settings.web_host, port=settings.port)
 
 
 if __name__ == "__main__":
