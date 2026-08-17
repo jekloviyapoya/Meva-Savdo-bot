@@ -18,6 +18,10 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/* `hidden` atributi .tabbar/.topbar kabi display beruvchi qoidalardan ustun tursin —
+   aks holda ko'rinmas qatlam bosishlarni yutib yuborishi mumkin. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   background: var(--bg);
@@ -208,3 +212,11 @@ textarea { min-height: 78px; resize: vertical; }
 .credit { text-align: center; color: var(--muted); font-size: .74rem; margin: 22px 0 6px; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Xato paneli — telefonda sababni ko'rsatish uchun */
+.errbar {
+  position: fixed; left: 8px; right: 8px; top: 8px; z-index: 90;
+  background: var(--danger); color: #fff; padding: 10px 12px;
+  border-radius: 12px; font-size: .8rem; line-height: 1.35;
+  box-shadow: 0 6px 20px rgba(0,0,0,.3); word-break: break-word;
+}

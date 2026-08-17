@@ -28,6 +28,23 @@ const dateFmt = (iso) => {
          d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 };
 
+/* Xatoni ekranda ko'rsatish — telefonda konsol yo'q, shuning uchun shart. */
+function showFatal(msg) {
+  const bar = document.getElementById("errbar") || (() => {
+    const el = document.createElement("div");
+    el.id = "errbar";
+    el.className = "errbar";
+    el.onclick = () => { try { navigator.clipboard.writeText(el.textContent); } catch (e) {} };
+    document.body.appendChild(el);
+    return el;
+  })();
+  bar.textContent = "⚠️ " + msg;
+  bar.hidden = false;
+}
+window.addEventListener("error", (e) => showFatal(e.message + " @ " + (e.lineno || "?")));
+window.addEventListener("unhandledrejection", (e) =>
+  showFatal(String((e.reason && e.reason.message) || e.reason)));
+
 function haptic(kind = "light") {
   try { tg.HapticFeedback.impactOccurred(kind); } catch (e) { /* ignore */ }
 }
@@ -76,7 +93,16 @@ async function guard(fn) {
 /* ---------------- Kirish ---------------- */
 
 async function boot() {
-  if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor && tg.setHeaderColor("secondary_bg_color"); }
+  if (tg) {
+    tg.ready(); tg.expand();
+    tg.setHeaderColor && tg.setHeaderColor("secondary_bg_color");
+    const fit = () => {
+      const h = tg.viewportStableHeight || tg.viewportHeight;
+      if (h) document.documentElement.style.setProperty("--vh", h + "px");
+    };
+    fit();
+    tg.onEvent && tg.onEvent("viewportChanged", fit);
+  }
   loading();
   try {
     ME = await api("/me");
@@ -163,14 +189,15 @@ function startApp() {
   TAB = tabs[0].id;
   tabbar.innerHTML = tabs.map((t) =>
     `<button class="tab" data-tab="${t.id}"><i>${t.icon}</i>${t.label}</button>`).join("");
-  tabbar.onclick = (e) => {
-    const btn = e.target.closest("[data-tab]");
-    if (!btn) return;
-    haptic();
-    go(btn.dataset.tab);
-  };
   go(TAB);
 }
+
+/* Bosishlar hujjat darajasida ushlanadi — bu eng ishonchli usul: ekran qayta
+   chizilganda ham, tugma qayerda bo'lishidan qat'i nazar ishlaydi. */
+document.addEventListener("click", (e) => {
+  const tab = e.target.closest("[data-tab]");
+  if (tab) { haptic(); go(tab.dataset.tab); }
+}, true);
 
 function roleLabel(role) {
   return { owner: "egasi", admin: "admin", seller: "sotuvchi", customer: "mijoz" }[role] || role;
