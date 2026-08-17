@@ -280,13 +280,28 @@ const DELIVERY = {
   shop_taxi: "🚕 Do'kon yetkazadi",
 };
 
-function screenSale() {
+async function screenSale() {
   CART = [];
   LAST.saleCustomer = null;
-  drawSale();
+  LAST.saleProducts = null;
+  LAST.saleTerm = "";
+  await drawSale();
+}
+
+/* Mahsulotlar bir marta yuklanadi va keshda turadi — savatga qo'shgach
+   ro'yxat joyida qoladi, qayta yuklanmaydi. */
+async function saleProducts() {
+  if (!LAST.saleProducts) {
+    try { LAST.saleProducts = await api("/products"); }
+    catch (e) { LAST.saleProducts = []; toast(e.message, true); }
+  }
+  return LAST.saleProducts;
 }
 
 async function drawSale() {
+  const all = await saleProducts();
+  const term = (LAST.saleTerm || "").toLowerCase();
+  const list = term ? all.filter((p) => p.name.toLowerCase().includes(term)) : all;
   render(`
     <div class="card" id="custCard">
       <div class="row" data-act="pickCustomer" style="border:0;padding:4px 0">
@@ -301,19 +316,58 @@ async function drawSale() {
 
     <div class="section-title">Savat</div>
     <div class="card tight" id="cartBox">${cartRows()}</div>
-    <button class="btn ghost" data-act="addItem">➕ Mahsulot qo'shish</button>
-    ${CART.length ? `<div style="height:10px"></div>
-      <button class="btn" data-act="finish">Yakunlash · ${money(cartTotal())} so'm</button>` : ""}
+    ${CART.length ? `<button class="btn" data-act="finish">Yakunlash · ${money(cartTotal())} so'm</button>
+      <div style="height:14px"></div>` : ""}
+
+    <div class="section-title">Mahsulotlar</div>
+    <div class="search"><input id="q" placeholder="🔎 Qidirish" value="${esc(LAST.saleTerm || "")}"></div>
+    <div class="pgrid" id="pgrid">${list.map(productTile).join("") ||
+      `<div class="empty wide"><i>📦</i>${term ? "Topilmadi" : "Mahsulot yo'q"}</div>`}</div>
+    ${ME.user.is_manager ? '<button class="btn ghost" data-act="newProduct">➕ Yangi mahsulot</button>' : ""}
   `);
+
+  const q = $("#q");
+  if (q) {
+    q.oninput = (e) => {
+      LAST.saleTerm = e.target.value;
+      const term2 = LAST.saleTerm.toLowerCase();
+      const found = term2 ? all.filter((p) => p.name.toLowerCase().includes(term2)) : all;
+      $("#pgrid").innerHTML = found.map(productTile).join("") ||
+        '<div class="empty wide"><i>📦</i>Topilmadi</div>';
+    };
+  }
+
   view.onclick = (e) => {
+    const tile = e.target.closest("[data-prod]");
+    if (tile) {
+      const p = all.find((x) => x.id === Number(tile.dataset.prod));
+      if (p) { haptic(); return sheetCartItem(p); }
+    }
     const a = e.target.closest("[data-act]");
     if (!a) return;
     if (a.dataset.act === "pickCustomer") return pickCustomer((c) => { LAST.saleCustomer = c; drawSale(); }, true);
-    if (a.dataset.act === "addItem") return pickProduct((p) => sheetCartItem(p));
     if (a.dataset.act === "finish") return sheetCheckout();
     if (a.dataset.act === "del") { CART.splice(Number(a.dataset.i), 1); drawSale(); }
     if (a.dataset.act === "edit") { sheetCartItem(null, Number(a.dataset.i)); }
+    if (a.dataset.act === "newProduct") return sheetProduct(null, async () => {
+      LAST.saleProducts = null; await drawSale();
+    });
   };
+}
+
+/* Rasmli mahsulot kartochkasi. Savatdagi miqdor kartochkada ko'rinib turadi. */
+function productTile(p) {
+  const inCart = CART.filter((i) => i.product_id === p.id)
+                     .reduce((s, i) => s + Number(i.qty), 0);
+  const media = p.photo
+    ? `<img src="${esc(p.photo)}" alt="" loading="lazy">`
+    : `<span class="ph">${p.unit === "kg" ? "⚖️" : "📦"}</span>`;
+  return `
+    <button class="ptile${inCart ? " picked" : ""}" data-prod="${p.id}">
+      <div class="ptile-img">${media}${inCart ? `<span class="badge-qty">${qty(inCart)} ${esc(p.unit)}</span>` : ""}</div>
+      <div class="ptile-name">${esc(p.name)}</div>
+      <div class="ptile-price">${p.price != null ? money(p.price) + " so'm" : "narx yo'q"}</div>
+    </button>`;
 }
 
 const cartTotal = () => CART.reduce((s, i) => s + i.qty * i.price, 0);
@@ -366,7 +420,8 @@ function sheetCartItem(product, index) {
     if (!(p >= 0)) return toast("Narxni kiriting", true);
     const next = Object.assign({}, item, { qty: q, price: p });
     if (index != null) CART[index] = next; else CART.push(next);
-    closeSheet(); haptic(); drawSale();
+    closeSheet(); haptic();
+    if (TAB === "sale") drawSale(); else if (TAB === "catalog") screenCatalog();
   };
 }
 
@@ -874,19 +929,19 @@ async function screenCatalog() {
     const list = await api("/products");
     render(`
       <div class="search"><input id="q" placeholder="🔎 Mahsulot qidirish"></div>
-      <div class="card tight" id="list">${list.map(productRow).join("") ||
-        '<div class="empty"><i>🛍</i>Katalog bo\'sh</div>'}</div>
+      <div class="pgrid" id="pgrid">${list.map(productTile).join("") ||
+        '<div class="empty wide"><i>🛍</i>Katalog bo\'sh</div>'}</div>
       ${cartBar()}
     `);
     $("#q").oninput = (e) => {
       const term = e.target.value.toLowerCase();
-      $("#list").innerHTML = list.filter((p) => p.name.toLowerCase().includes(term))
-        .map(productRow).join("") || '<div class="empty">Topilmadi</div>';
+      $("#pgrid").innerHTML = list.filter((p) => p.name.toLowerCase().includes(term))
+        .map(productTile).join("") || '<div class="empty wide">Topilmadi</div>';
     };
     view.onclick = (e) => {
       if (e.target.closest("#cartBar")) return sheetOrderCheckout();
-      const row = e.target.closest("[data-product]");
-      if (row) sheetCartItem(list.find((p) => p.id === Number(row.dataset.product)));
+      const tile = e.target.closest("[data-prod]");
+      if (tile) sheetCartItem(list.find((p) => p.id === Number(tile.dataset.prod)));
     };
   });
 }
