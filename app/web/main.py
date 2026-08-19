@@ -9,7 +9,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
@@ -76,6 +76,19 @@ async def current(request: Request, session: AsyncSession) -> Ctx | None:
 async def mini_app(request: Request):
     """Telegram Mini App — botdagi barcha amallar shu yerda bajariladi."""
     return templates.TemplateResponse(request, "webapp.html", {})
+
+
+@app.get("/sw.js")
+async def service_worker():
+    """Service worker ildizdan berilishi shart — shunda scope butun saytni qamraydi."""
+    return FileResponse(BASE_DIR / "static" / "sw.js", media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
+@app.get("/manifest.webmanifest")
+async def manifest():
+    return FileResponse(BASE_DIR / "static" / "manifest.webmanifest",
+                        media_type="application/manifest+json")
 
 
 @app.get("/health")

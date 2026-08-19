@@ -1,0 +1,21 @@
+{
+  "name": "Savdo tizimi — NM GROUP",
+  "short_name": "Savdo",
+  "description": "Do'kon savdosi, mijozlar, buyurtma va yetkazib berishni boshqarish",
+  "lang": "uz",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#0e6e6e",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/static/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Savdo", "url": "/app#sale" },
+    { "name": "Buyurtmalar", "url": "/app#orders" }
+  ]
+}

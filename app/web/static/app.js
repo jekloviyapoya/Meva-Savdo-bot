@@ -11,6 +11,12 @@ const backdrop = document.getElementById("backdrop");
 
 let ME = null;
 let TAB = "home";
+
+/* Telegramdan tashqarida (mobil ilova, brauzer) sessiya shu tokenda saqlanadi. */
+const TOKEN_KEY = "nm_app_token";
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } };
+const setToken = (v) => { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} };
+const standalone = !tg || !tg.initData;
 let CART = [];          // savdo/buyurtma savati
 let LAST = {};          // ekranlar uchun vaqtinchalik ma'lumot
 
@@ -62,7 +68,7 @@ async function api(path, options = {}) {
   const res = await fetch("/api" + path, {
     method: options.method || "GET",
     headers: Object.assign(
-      { "X-Init-Data": (tg && tg.initData) || "" },
+      { "X-Init-Data": (tg && tg.initData) || "", "X-App-Token": getToken() },
       options.body instanceof FormData ? {} : { "Content-Type": "application/json" }
     ),
     body: options.body instanceof FormData ? options.body
@@ -103,10 +109,13 @@ async function boot() {
     fit();
     tg.onEvent && tg.onEvent("viewportChanged", fit);
   }
+  registerServiceWorker();
   loading();
+  if (standalone && !getToken()) return screenPassword();
   try {
     ME = await api("/me");
   } catch (err) {
+    if (standalone) { setToken(""); return screenPassword(err.message); }
     render(`<div class="center-screen">
       <div class="logo">🔒</div><h2>Kirish imkonsiz</h2>
       <p class="hint" style="color:var(--muted)">${esc(err.message)}</p>
@@ -116,6 +125,95 @@ async function boot() {
   }
   if (!ME.linked) return ME.pending ? screenPending() : screenLogin();
   startApp();
+}
+
+/* Telegramdan tashqarida: telefon + parol bilan kirish. */
+function screenPassword(errMsg, options) {
+  topbar.hidden = true; tabbar.hidden = true;
+  render(`<div class="center-screen">
+    <div class="logo">🏪</div>
+    <h2>Savdo tizimi</h2>
+    <p style="color:var(--muted);margin:8px 0 18px">
+      Login — telefon raqamingiz. Parolni biznes egangiz yoki admin bergan.</p>
+    <div class="card" style="text-align:left">
+      ${options && options.length ? `
+        <label>Qaysi biznesga kiramiz?</label>
+        <select id="which">${options.map((o) =>
+          `<option value="${o.user_id}">${esc(o.shop)} · ${esc(o.role)}</option>`).join("")}</select>
+        <div style="height:12px"></div>` : `
+        <label for="phone">Telefon raqam</label>
+        <input id="phone" type="tel" inputmode="tel" autocomplete="username"
+               placeholder="+998 90 123 45 67" value="${esc(LAST.loginPhone || "")}">
+        <label for="pwd">Parol</label>
+        <input id="pwd" type="password" autocomplete="current-password" placeholder="••••••••">
+        <div style="height:12px"></div>`}
+      ${errMsg ? `<p class="err-text">${esc(errMsg)}</p>` : ""}
+      <button class="btn" id="pwdBtn">Kirish</button>
+    </div>
+    <div id="installBox"></div>
+    <p style="color:var(--muted);font-size:.82rem;margin-top:14px">
+      Telegram orqali kirsangiz parol kerak emas — botdagi «Ilovani ochish» tugmasini bosing.</p>
+    <p class="credit">Ulug'bek Bekbergenov — NM GROUP</p>
+  </div>`);
+  showInstallHint();
+
+  $("#pwdBtn").onclick = () => guard(async () => {
+    const body = options && options.length
+      ? { phone: LAST.loginPhone, password: LAST.loginPwd, user_id: Number($("#which").value) }
+      : { phone: $("#phone").value.trim(), password: $("#pwd").value };
+    if (!body.phone || !body.password) return toast("Telefon va parolni kiriting", true);
+    LAST.loginPhone = body.phone; LAST.loginPwd = body.password;
+    let res;
+    try {
+      res = await api("/auth/password", { method: "POST", body });
+    } catch (e) {
+      return screenPassword(e.message);
+    }
+    if (res.choose) return screenPassword(null, res.choose);
+    setToken(res.token);
+    LAST.loginPwd = null;
+    haptic("medium");
+    ME = await api("/me");
+    startApp();
+  });
+}
+
+function logout() {
+  setToken("");
+  ME = null;
+  LAST = {}; CART = [];
+  screenPassword();
+}
+
+/* PWA: ilovani telefon ekraniga o'rnatish taklifi */
+let installEvent = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); installEvent = e; showInstallHint();
+});
+
+function showInstallHint() {
+  const box = document.getElementById("installBox");
+  if (!box) return;
+  const mm = window.matchMedia && window.matchMedia("(display-mode: standalone)");
+  if (mm && mm.matches) return;   // allaqachon ilova sifatida ochilgan
+  if (installEvent) {
+    box.innerHTML = '<button class="btn line" id="installBtn" style="margin-top:12px">📲 Ilovani o\'rnatish</button>';
+    $("#installBtn").onclick = async () => {
+      installEvent.prompt();
+      await installEvent.userChoice;
+      installEvent = null;
+      box.innerHTML = "";
+    };
+  } else if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+    box.innerHTML = '<p style="color:var(--muted);font-size:.8rem;margin-top:12px">' +
+      'Ilova sifatida o\'rnatish: pastdagi <b>Ulashish</b> → <b>«Bosh ekranga qo\'shish»</b></p>';
+  }
+}
+
+function registerServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
 }
 
 function screenLogin() {
@@ -1126,16 +1224,22 @@ function screenMore() {
       <div class="row" data-go2="about"><div class="thumb">ℹ️</div>
         <div class="row-main"><div class="row-title">Dastur haqida</div>
           <div class="row-sub">v${esc(ME.about.version)}</div></div><div class="row-end">›</div></div>
+      ${standalone ? `
+      <div class="row" data-go2="logout"><div class="thumb">🚪</div>
+        <div class="row-main"><div class="row-title">Chiqish</div>
+          <div class="row-sub">${esc(ME.user.phone || "")}</div></div><div class="row-end">›</div></div>` : ""}
     </div>
+    <div id="installBox"></div>
     <p class="credit">${esc(ME.about.author)} — ${esc(ME.about.company)}</p>
   `);
+  showInstallHint();
   view.onclick = (e) => {
     const r = e.target.closest("[data-go2]");
     if (!r) return;
     haptic();
     ({ products: screenProducts, sales: screenSales, suppliers: sheetSuppliers,
        methods: sheetMethods, staff: screenStaff, license: sheetLicense,
-       shops: sheetShops, about: sheetAbout })[r.dataset.go2]();
+       shops: sheetShops, about: sheetAbout, logout: logout })[r.dataset.go2]();
   };
 }
 

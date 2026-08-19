@@ -1,8 +1,12 @@
-"""Telegram Mini App autentifikatsiyasi.
+"""Autentifikatsiya — ikki yo'l bilan.
 
-Telegram har bir so'rovda `initData` yuboradi. Uni bot tokeni bilan imzolangan
-HMAC orqali tekshiramiz — shunda foydalanuvchi haqiqatan Telegram ichida
-ekaniga va o'zini boshqa odam deb ko'rsatmayotganiga ishonch hosil qilamiz.
+1. **Telegram Mini App** — har bir so'rovda `initData` keladi, uni bot tokeni
+   bilan imzolangan HMAC orqali tekshiramiz.
+2. **Mustaqil mobil ilova (PWA) yoki brauzer** — telefon + parol bilan kiriladi,
+   javobda imzolangan token beriladi va keyingi so'rovlarda `X-App-Token`
+   sarlavhasida yuboriladi.
+
+Ikkala holatda ham natija bir xil: `AppContext` — kim, qaysi biznesda, qaysi rol.
 """
 from __future__ import annotations
 
@@ -19,7 +23,8 @@ from app.config import settings
 from app.models import Role, Shop, User, UserStatus
 from app.services import resolve_context
 
-MAX_AGE = 24 * 60 * 60  # initData 24 soatdan keyin eskiradi
+MAX_AGE = 24 * 60 * 60          # initData 24 soatdan keyin eskiradi
+TOKEN_MAX_AGE = 60 * 60 * 24 * 60  # ilova tokeni 60 kun amal qiladi
 
 
 def parse_init_data(init_data: str, bot_token: str) -> dict:
@@ -50,12 +55,35 @@ def parse_init_data(init_data: str, bot_token: str) -> dict:
     return json.loads(user_raw)
 
 
-class TgContext:
-    """So'rov konteksti: Telegram foydalanuvchisi, faol biznes va roli."""
+def make_token(user_id: int) -> str:
+    """Parol bilan kirgan foydalanuvchiga imzolangan token beradi."""
+    return _serializer().dumps({"uid": user_id})
 
-    def __init__(self, tg: dict, shop: Shop | None, user: User | None):
-        self.tg = tg
-        self.tg_id: int = int(tg["id"])
+
+def read_token(token: str) -> int | None:
+    """Tokenni tekshiradi. Buzilgan yoki eskirgan bo'lsa None qaytaradi."""
+    try:
+        data = _serializer().loads(token, max_age=TOKEN_MAX_AGE)
+    except Exception:
+        return None
+    uid = data.get("uid")
+    return int(uid) if uid else None
+
+
+def _serializer():
+    from itsdangerous import URLSafeTimedSerializer
+    return URLSafeTimedSerializer(settings.web_secret, salt="app-token")
+
+
+class TgContext:
+    """So'rov konteksti: foydalanuvchi, faol biznes va roli."""
+
+    def __init__(self, tg: dict | None, shop: Shop | None, user: User | None):
+        self.tg = tg or {}
+        # Parol bilan kirgan foydalanuvchida Telegram ID bo'lmasligi mumkin
+        self.tg_id: int | None = int(self.tg["id"]) if self.tg.get("id") else (
+            user.tg_id if user else None
+        )
         self.shop = shop
         self.user = user
 
@@ -101,6 +129,19 @@ async def get_context(
     session: AsyncSession,
     init_data: str | None,
 ) -> TgContext:
+    # 1-yo'l: mustaqil ilova tokeni
+    token = request.headers.get("x-app-token", "")
+    if token:
+        user_id = read_token(token)
+        if not user_id:
+            raise HTTPException(401, "Sessiya eskirgan, qaytadan kiring")
+        user = await session.get(User, user_id)
+        if user is None or user.status != UserStatus.APPROVED:
+            raise HTTPException(401, "Hisob faol emas")
+        shop = await session.get(Shop, user.shop_id)
+        return TgContext(None, shop, user)
+
+    # 2-yo'l: Telegram Mini App
     raw = init_data or request.headers.get("x-init-data", "")
     tg = parse_init_data(raw, settings.bot_token)
     shop, user = await resolve_context(session, int(tg["id"]))

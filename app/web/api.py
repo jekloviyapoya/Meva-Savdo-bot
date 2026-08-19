@@ -26,8 +26,9 @@ from app.models import (
 from app.services import (
     apply_balance, create_invite, find_login, invite_link, managers, memberships,
     money, normalize_phone, qty_fmt, set_balance, staff_members, switch_shop,
+    verify_password,
 )
-from app.web.auth import TgContext, get_context
+from app.web.auth import TgContext, get_context, make_token
 
 log = logging.getLogger("api")
 router = APIRouter(prefix="/api")
@@ -146,7 +147,7 @@ def s_ledger(e: Ledger) -> dict:
 
 @router.get("/me")
 async def me(c: TgContext = Depends(ctx), session: AsyncSession = Depends(get_session)):
-    links = await memberships(session, c.tg_id)
+    links = await memberships(session, c.tg_id) if c.tg_id else ([c.user] if c.user else [])
     shops = []
     for link in links:
         shop = await session.get(Shop, link.shop_id)
@@ -169,6 +170,49 @@ async def me(c: TgContext = Depends(ctx), session: AsyncSession = Depends(get_se
         },
         "shops": shops,
         "about": {"author": AUTHOR, "company": COMPANY, "version": VERSION},
+    }
+
+
+@router.post("/auth/password")
+async def auth_password(payload: dict = Body(...),
+                        session: AsyncSession = Depends(get_session)):
+    """Telefon + parol bilan kirish (Telegramdan tashqarida — mobil ilova, brauzer).
+
+    Bir raqam bir nechta biznesga tegishli bo'lsa, ro'yxat qaytariladi va
+    foydalanuvchi qaysi biznesga kirishini tanlaydi.
+    """
+    phone = normalize_phone(payload.get("phone", ""))
+    password = payload.get("password") or ""
+    if not phone or not password:
+        raise HTTPException(400, "Telefon va parolni kiriting")
+
+    found = await find_login(session, phone)
+    matched = [u for u in found if verify_password(password, u.password_hash)
+               and u.status == UserStatus.APPROVED]
+    if not matched:
+        raise HTTPException(401, "Telefon yoki parol noto'g'ri")
+
+    want = payload.get("user_id")
+    if want:
+        chosen = next((u for u in matched if u.id == int(want)), None)
+        if chosen is None:
+            raise HTTPException(403, "Bu biznesga ruxsatingiz yo'q")
+        matched = [chosen]
+
+    if len(matched) > 1:
+        options = []
+        for user in matched:
+            shop = await session.get(Shop, user.shop_id)
+            options.append({"user_id": user.id, "shop": shop.name,
+                            "role": user.role.value})
+        return {"choose": options}
+
+    user = matched[0]
+    shop = await session.get(Shop, user.shop_id)
+    return {
+        "token": make_token(user.id),
+        "user": {"id": user.id, "name": user.full_name, "role": user.role.value},
+        "shop": {"id": shop.id, "name": shop.name},
     }
 
 
