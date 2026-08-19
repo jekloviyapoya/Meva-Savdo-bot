@@ -464,7 +464,7 @@ async function drawSale() {
     <div class="search"><input id="q" placeholder="Qidirish" value="${esc(LAST.saleTerm || "")}"></div>
     <div class="pgrid" id="pgrid">${list.map(productTile).join("") ||
       `<div class="empty wide">${icon("box", 30)}${term ? "Topilmadi" : "Mahsulot yo'q"}</div>`}</div>
-    ${ME.user.is_manager ? '<button class="btn ghost" data-act="newProduct">${icon("plus", 18)} Yangi mahsulot</button>' : ""}
+    ${ME.user.is_manager ? `<button class="btn ghost" data-act="newProduct">${icon("plus", 18)} Yangi mahsulot</button>` : ""}
   `);
 
   const q = $("#q");
@@ -609,7 +609,7 @@ async function pickCustomer(onPick, allowQuick) {
     <h2>Mijoz tanlang</h2>
     <input id="q" placeholder="Ism yoki telefon bo'yicha qidirish">
     <div class="btn-row">
-      ${allowQuick ? '<button class="btn line" data-quick>${icon("person", 18)} Tezkor savdo</button>' : ""}
+      ${allowQuick ? `<button class="btn line" data-quick>${icon("person", 18)} Tezkor savdo</button>` : ""}
       <button class="btn ghost" data-new>➕ Yangi mijoz</button>
     </div>
     <div class="card tight" id="list" style="margin-top:10px">${list.map(customerRow).join("") ||
@@ -635,7 +635,7 @@ async function pickCustomer(onPick, allowQuick) {
 
 function customerRow(c) {
   return `<div class="row" data-customer="${c.id}">
-    ${c.photo ? `<img class="thumb" src="${esc(c.photo)}" alt="">` : '<div class="thumb">${icon("person", 20)}</div>'}
+    ${c.photo ? `<img class="thumb" src="${esc(c.photo)}" alt="">` : `<div class="thumb">${icon("person", 20)}</div>`}
     <div class="row-main"><div class="row-title">${esc(c.name)}</div>
       <div class="row-sub">${esc(c.phone || "telefon yo'q")}</div></div>
     <div class="row-end">${c.balance > 0
@@ -669,7 +669,7 @@ async function pickProduct(onPick) {
 
 function productRow(p) {
   return `<div class="row" data-product="${p.id}">
-    ${p.photo ? `<img class="thumb" src="${esc(p.photo)}" alt="">` : '<div class="thumb">${icon("box", 20)}</div>'}
+    ${p.photo ? `<img class="thumb" src="${esc(p.photo)}" alt="">` : `<div class="thumb">${icon("box", 20)}</div>`}
     <div class="row-main"><div class="row-title">${esc(p.name)}</div>
       <div class="row-sub">${esc(p.price_label)} · ${esc(p.unit)}</div></div>
     <div class="row-end num">${qty(p.stock)}</div>
@@ -684,7 +684,7 @@ async function screenProducts() {
     const list = await api("/products");
     render(`
       <div class="search"><input id="q" placeholder="Mahsulot qidirish"></div>
-      ${ME.user.is_manager ? '<button class="btn ghost" data-act="new">${icon("plus", 18)} Yangi mahsulot</button><div style="height:10px"></div>' : ""}
+      ${ME.user.is_manager ? `<button class="btn ghost" data-act="new">${icon("plus", 18)} Yangi mahsulot</button><div style="height:10px"></div>` : ""}
       <div class="card tight" id="list">${list.map(productRow).join("") ||
         `<div class="empty">${icon("box", 30)}Hali mahsulot qo'shilmagan</div>`}</div>
     `);
@@ -726,7 +726,7 @@ async function sheetProduct(product, after) {
     <div id="photoPreview">${editing && product.photo ? `<img src="${esc(product.photo)}" style="width:100%;max-height:180px;object-fit:cover;border-radius:14px;margin-top:8px">` : ""}</div>
     <div style="height:14px"></div>
     <button class="btn" id="save">${editing ? "Saqlash" : "Qo'shish"}</button>
-    ${editing ? '<div style="height:8px"></div><button class="btn danger" id="del">${icon("trash", 16)} O\'chirish</button>' : ""}
+    ${editing ? `<div style="height:8px"></div><button class="btn danger" id="del">${icon("trash", 16)} O'chirish</button>` : ""}
   `);
 
   let photoUrl = editing ? product.photo : null;
@@ -845,7 +845,7 @@ async function sheetCustomerDetail(id) {
   const c = data.customer;
   sheet(`
     <h2>${esc(c.name)}</h2>
-    <p class="hint">${esc(c.phone || "telefon yo'q")} · ${esc(c.address || "manzil yo'q")}</p>
+    <p class="hint">${esc(c.phone || "telefon yo`q")} · ${esc(c.address || "manzil yo`q")}</p>
     <div class="metric" style="margin:10px 0">
       <div class="metric-label">Balans</div>
       <div class="num-lg ${c.balance > 0 ? "debt" : "ok"}">${money(c.balance)}</div>

@@ -5,8 +5,8 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger, Boolean, Date, DateTime, Enum, ForeignKey, Numeric, String, Text,
-    UniqueConstraint, func,
+    BigInteger, Boolean, Date, DateTime, Enum, ForeignKey, LargeBinary, Numeric,
+    String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -165,6 +165,25 @@ class Invite(Base):
     @property
     def usable(self) -> bool:
         return self.is_active and (self.max_uses == 0 or self.uses < self.max_uses)
+
+
+class MediaFile(Base):
+    """Yuklangan rasmlar bazada saqlanadi.
+
+    Konteyner diski vaqtinchalik — har qayta joylashda tozalanadi va rasmlar
+    yo'qoladi. Shu sabab rasm baytlari shu jadvalda turadi.
+    """
+
+    __tablename__ = "media_files"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    shop_id: Mapped[int | None] = mapped_column(
+        ForeignKey("shops.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    mime: Mapped[str] = mapped_column(String(64), default="image/jpeg")
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    size: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # ------------------------- Katalog -------------------------

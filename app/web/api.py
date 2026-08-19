@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import AUTHOR, COMPANY, VERSION, settings
 from app.db import SessionMaker
 from app.models import (
+    MediaFile,
     Customer, DeliveryType, Invite, Ledger, LedgerType, Order, OrderItem,
     OrderStatus, PaymentMethod, Product, Role, Sale, SaleItem, Shop, Supplier,
     Unit, User, UserStatus,
@@ -924,7 +925,8 @@ async def report(c: TgContext = Depends(ctx),
 # ------------------------- Rasm yuklash -------------------------
 
 @router.post("/upload")
-async def upload(file: UploadFile = File(...), c: TgContext = Depends(ctx)):
+async def upload(file: UploadFile = File(...), c: TgContext = Depends(ctx),
+                 session: AsyncSession = Depends(get_session)):
     c.require_staff()
     ext = Path(file.filename or "").suffix.lower()
     if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
@@ -932,6 +934,12 @@ async def upload(file: UploadFile = File(...), c: TgContext = Depends(ctx)):
     data = await file.read()
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(400, "Rasm 5 MB dan katta bo'lmasin")
+    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".png": "image/png", ".webp": "image/webp"}[ext]
     name = f"{secrets.token_hex(8)}{ext}"
-    (MEDIA / name).write_bytes(data)
+
+    # Bazaga saqlaymiz — konteyner diski qayta joylashda tozalanadi
+    session.add(MediaFile(id=name, shop_id=c.shop.id if c.shop else None,
+                          mime=mime, data=data, size=len(data)))
+    await session.commit()
     return {"url": f"/media/{name}"}

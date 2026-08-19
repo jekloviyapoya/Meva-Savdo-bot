@@ -8,8 +8,8 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
@@ -18,6 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import AUTHOR, COMPANY, VERSION, settings
 from app.db import SessionMaker, init_db
+from app.models import MediaFile
 from app.models import (
     Customer, Invite, LedgerType, Ledger, Order, OrderStatus, Product, Role, Sale,
     Shop, Supplier, Unit, User, UserStatus,
@@ -35,7 +36,6 @@ MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title="Savdo tizimi — NM GROUP")
 app.add_middleware(SessionMiddleware, secret_key=settings.web_secret)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 app.include_router(api_router)
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -47,6 +47,23 @@ templates.env.globals.update(AUTHOR=AUTHOR, COMPANY=COMPANY, VERSION=VERSION)
 async def mini_app(request: Request):
     """Telegram Mini App — botdagi barcha amallar shu yerda bajariladi."""
     return templates.TemplateResponse(request, "webapp.html", {})
+
+
+@app.get("/media/{name}")
+async def media(name: str):
+    """Rasmni bazadan beradi. Eski, diskda qolgan rasmlar ham ishlaydi."""
+    async with SessionMaker() as session:
+        item = await session.get(MediaFile, name)
+        if item is not None:
+            return Response(
+                content=item.data, media_type=item.mime,
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+
+    legacy = MEDIA_DIR / Path(name).name
+    if legacy.is_file():
+        return FileResponse(legacy, headers={"Cache-Control": "public, max-age=86400"})
+    raise HTTPException(404, "Rasm topilmadi")
 
 
 @app.get("/sw.js")
