@@ -197,7 +197,7 @@ function showInstallHint() {
   const mm = window.matchMedia && window.matchMedia("(display-mode: standalone)");
   if (mm && mm.matches) return;   // allaqachon ilova sifatida ochilgan
   if (installEvent) {
-    box.innerHTML = '<button class="btn line" id="installBtn" style="margin-top:12px">📲 Ilovani o\'rnatish</button>';
+    box.innerHTML = '<button class="btn line" id="installBtn" style="margin-top:12px">Ilovani o\'rnatish</button>';
     $("#installBtn").onclick = async () => {
       installEvent.prompt();
       await installEvent.userChoice;
@@ -257,20 +257,63 @@ function screenPending() {
   </div>`);
 }
 
+
+/* ---------------- Ikonkalar ----------------
+   Emoji o'rniga chiziqli SVG to'plam: bir xil qalinlik, currentColor bilan
+   bo'yaladi, har qanday o'lchamda tiniq chiqadi. */
+
+const ICON_PATHS = {
+  home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5.5h5V20"/>',
+  cart: '<circle cx="9.5" cy="19.5" r="1.4"/><circle cx="17.5" cy="19.5" r="1.4"/><path d="M2.5 3.5h2.6l2.2 10.4a1.6 1.6 0 0 0 1.6 1.3h8.3a1.6 1.6 0 0 0 1.6-1.2l1.6-6.4H6"/>',
+  inbox: '<path d="M3.5 12.5h4l1.5 3h6l1.5-3h4"/><path d="M5.2 4.8h13.6l2.7 7.7v6a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5v-6z"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M2.8 20a6.2 6.2 0 0 1 12.4 0"/><path d="M16.5 5.2a3.2 3.2 0 0 1 0 6"/><path d="M18 14.4a6.2 6.2 0 0 1 3.2 5.6"/>',
+  more: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+  bag: '<path d="M4.5 7.5h15l1 12.5a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1z"/><path d="M8.5 10V6.5a3.5 3.5 0 0 1 7 0V10"/>',
+  box: '<path d="M12 2.8 3.5 7.2v9.6L12 21.2l8.5-4.4V7.2z"/><path d="M3.5 7.2 12 11.6l8.5-4.4"/><path d="M12 11.6v9.6"/>',
+  wallet: '<path d="M3.5 7.5A2 2 0 0 1 5.5 5.5h13a1.5 1.5 0 0 1 1.5 1.5v1"/><path d="M3.5 7.5v10a2 2 0 0 0 2 2h13a1.5 1.5 0 0 0 1.5-1.5V9a1.5 1.5 0 0 0-1.5-1.5h-15"/><circle cx="16.5" cy="13.5" r="1.2"/>',
+  truck: '<path d="M2.5 6.5h10.5v9.5H2.5z"/><path d="M13 9.5h3.7l2.8 3v3.5H13z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
+  card: '<rect x="2.8" y="5.5" width="18.4" height="13" rx="2.2"/><path d="M2.8 10h18.4"/><path d="M6.5 14.5h3"/>',
+  person: '<circle cx="12" cy="8" r="3.5"/><path d="M4.8 20.5a7.2 7.2 0 0 1 14.4 0"/>',
+  lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/>',
+  info: '<circle cx="12" cy="12" r="9.2"/><path d="M12 11v5.5"/><path d="M12 7.6v.6"/>',
+  exit: '<path d="M14.5 3.5h4a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5h-4"/><path d="M10 8.5 6 12l4 3.5"/><path d="M6 12h9"/>',
+  store: '<path d="M4 10v9.5h16V10"/><path d="M3 5.5h18l1 4.5a3 3 0 0 1-5.5 1.6 3 3 0 0 1-5 0 3 3 0 0 1-5 0z"/>',
+  plus: '<path d="M12 5.5v13"/><path d="M5.5 12h13"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M15.8 15.8 20.5 20.5"/>',
+  chart: '<path d="M4 20V11"/><path d="M10 20V4.5"/><path d="M16 20v-6.5"/><path d="M22 20H2"/>',
+  trash: '<path d="M4.5 6.5h15"/><path d="M9.5 6.5V4.8h5v1.7"/><path d="M6.5 6.5 7.5 20h9l1-13.5"/>',
+  edit: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M15.5 6.5 17.5 8.5"/>',
+  image: '<rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2.4"/><circle cx="8.6" cy="10" r="1.6"/><path d="M4 17.5 9.5 12l4 3.5 3-2.5 4 4.5"/>',
+  check: '<path d="M5 12.5 10 17.5 19.5 7"/>',
+  close: '<path d="M6 6 18 18"/><path d="M18 6 6 18"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 6.8V12l3.4 2"/>',
+  scale: '<path d="M12 4.5v15"/><path d="M6.5 19.5h11"/><path d="M4 9h16"/><path d="M4 9 1.8 14.2a3.2 3.2 0 0 0 4.4 0z"/><path d="M20 9l2.2 5.2a3.2 3.2 0 0 1-4.4 0z"/>',
+  link: '<path d="M10 13.5a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7L11.5 6.4"/><path d="M14 10.5a4 4 0 0 0-5.7 0L5.5 13.3a4 4 0 0 0 5.7 5.7l1.3-1.3"/>',
+  download: '<path d="M12 3.5v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4.5 19.5h15"/>',
+};
+
+function icon(name, size = 22) {
+  const path = ICON_PATHS[name];
+  if (!path) return "";
+  return '<svg class="ic" width="' + size + '" height="' + size + '" viewBox="0 0 24 24"' +
+    ' fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"' +
+    ' stroke-linejoin="round" aria-hidden="true">' + path + '</svg>';
+}
+
 /* ---------------- Karkas ---------------- */
 
 const TABS_STAFF = [
-  { id: "home", icon: "🏠", label: "Bosh" },
-  { id: "sale", icon: "🛒", label: "Savdo" },
-  { id: "orders", icon: "📥", label: "Buyurtma" },
-  { id: "customers", icon: "👥", label: "Mijoz" },
-  { id: "more", icon: "⋯", label: "Yana" },
+  { id: "home", icon: "home", label: "Bosh" },
+  { id: "sale", icon: "cart", label: "Savdo" },
+  { id: "orders", icon: "inbox", label: "Buyurtma" },
+  { id: "customers", icon: "users", label: "Mijoz" },
+  { id: "more", icon: "more", label: "Yana" },
 ];
 const TABS_CUSTOMER = [
-  { id: "catalog", icon: "🛍", label: "Katalog" },
-  { id: "myorders", icon: "📦", label: "Buyurtma" },
-  { id: "balance", icon: "💰", label: "Balans" },
-  { id: "more", icon: "⋯", label: "Yana" },
+  { id: "catalog", icon: "bag", label: "Katalog" },
+  { id: "myorders", icon: "box", label: "Buyurtma" },
+  { id: "balance", icon: "wallet", label: "Balans" },
+  { id: "more", icon: "more", label: "Yana" },
 ];
 
 function startApp() {
@@ -278,7 +321,7 @@ function startApp() {
   tabbar.hidden = false;
   $("#shopName").textContent = ME.shop ? ME.shop.name : "Savdo";
   $("#shopSub").textContent = `${ME.user.name} · ${roleLabel(ME.user.role)}` +
-    (ME.shop && !ME.shop.license_ok ? " · ⛔️ obuna tugagan" : "");
+    (ME.shop && !ME.shop.license_ok ? " · obuna tugagan" : "");
   const sw = $("#shopSwitch");
   sw.hidden = ME.shops.length < 2;
   sw.onclick = sheetShops;
@@ -286,7 +329,7 @@ function startApp() {
   const tabs = ME.user.is_staff ? TABS_STAFF : TABS_CUSTOMER;
   TAB = tabs[0].id;
   tabbar.innerHTML = tabs.map((t) =>
-    `<button class="tab" data-tab="${t.id}"><i>${t.icon}</i>${t.label}</button>`).join("");
+    `<button class="tab" data-tab="${t.id}">${icon(t.icon, 23)}<span>${t.label}</span></button>`).join("");
   go(TAB);
 }
 
@@ -336,22 +379,22 @@ async function screenHome() {
       </div>
 
       <div class="quick">
-        <button data-go="sale"><i>🛒</i>Savdo</button>
-        <button data-act="newProduct"><i>➕</i>Mahsulot</button>
-        <button data-act="newCustomer"><i>👤</i>Mijoz</button>
-        <button data-go="orders"><i>📥</i>Buyurtma</button>
+        <button data-go="sale">${icon("cart", 24)}<span>Savdo</span></button>
+        <button data-act="newProduct">${icon("plus", 24)}<span>Mahsulot</span></button>
+        <button data-act="newCustomer">${icon("person", 24)}<span>Mijoz</span></button>
+        <button data-go="orders">${icon("inbox", 24)}<span>Buyurtma</span></button>
       </div>
 
       <div class="section-title">Ochiq buyurtmalar</div>
       <div class="card tight">${open.length ? open.slice(0, 6).map(orderRow).join("")
-        : '<div class="empty"><i>📭</i>Ochiq buyurtma yo\'q</div>'}</div>
+        : `<div class="empty">${icon("inbox", 30)}Ochiq buyurtma yo'q</div>`}</div>
 
       <div class="section-title">Eng ko'p sotilgan (30 kun)</div>
       <div class="card tight">${rep.top.length ? rep.top.map((t) => `
         <div class="row" style="cursor:default">
           <div class="row-main"><div class="row-title">${esc(t.name)}</div></div>
           <div class="row-end num">${money(t.total)}</div>
-        </div>`).join("") : '<div class="empty"><i>📊</i>Ma\'lumot yo\'q</div>'}</div>
+        </div>`).join("") : `<div class="empty">${icon("chart", 30)}Ma'lumot yo'q</div>`}</div>
     `);
     view.onclick = (e) => {
       const g = e.target.closest("[data-go]");
@@ -368,9 +411,9 @@ async function screenHome() {
 /* ---------------- Savdo ---------------- */
 
 const STATUS = {
-  new: ["🆕 Yangi", "warn"], priced: ["💵 Narxlandi", "warn"],
-  confirmed: ["✅ Tasdiqlandi", "ok"], scheduled: ["🚚 Vaqt belgilandi", "ok"],
-  done: ["📦 Yetkazildi", "ok"], cancelled: ["🚫 Bekor", "debt"],
+  new: ["Yangi", "warn"], priced: ["Narxlandi", "warn"],
+  confirmed: ["Tasdiqlandi", "ok"], scheduled: ["🚚 Vaqt belgilandi", "ok"],
+  done: ["Yetkazildi", "ok"], cancelled: ["Bekor", "debt"],
 };
 const DELIVERY = {
   pickup: "🏬 O'zi olib ketadi",
@@ -403,7 +446,7 @@ async function drawSale() {
   render(`
     <div class="card" id="custCard">
       <div class="row" data-act="pickCustomer" style="border:0;padding:4px 0">
-        <div class="thumb">👤</div>
+        <div class="thumb">${icon("person", 20)}</div>
         <div class="row-main">
           <div class="row-title">${LAST.saleCustomer ? esc(LAST.saleCustomer.name) : "Mijozni tanlang"}</div>
           <div class="row-sub">${LAST.saleCustomer ? esc(LAST.saleCustomer.balance_label) : "yoki tezkor savdo"}</div>
@@ -418,10 +461,10 @@ async function drawSale() {
       <div style="height:14px"></div>` : ""}
 
     <div class="section-title">Mahsulotlar</div>
-    <div class="search"><input id="q" placeholder="🔎 Qidirish" value="${esc(LAST.saleTerm || "")}"></div>
+    <div class="search"><input id="q" placeholder="Qidirish" value="${esc(LAST.saleTerm || "")}"></div>
     <div class="pgrid" id="pgrid">${list.map(productTile).join("") ||
-      `<div class="empty wide"><i>📦</i>${term ? "Topilmadi" : "Mahsulot yo'q"}</div>`}</div>
-    ${ME.user.is_manager ? '<button class="btn ghost" data-act="newProduct">➕ Yangi mahsulot</button>' : ""}
+      `<div class="empty wide">${icon("box", 30)}${term ? "Topilmadi" : "Mahsulot yo'q"}</div>`}</div>
+    ${ME.user.is_manager ? '<button class="btn ghost" data-act="newProduct">${icon("plus", 18)} Yangi mahsulot</button>' : ""}
   `);
 
   const q = $("#q");
@@ -431,7 +474,7 @@ async function drawSale() {
       const term2 = LAST.saleTerm.toLowerCase();
       const found = term2 ? all.filter((p) => p.name.toLowerCase().includes(term2)) : all;
       $("#pgrid").innerHTML = found.map(productTile).join("") ||
-        '<div class="empty wide"><i>📦</i>Topilmadi</div>';
+        `<div class="empty wide">${icon("box", 30)}Topilmadi</div>`;
     };
   }
 
@@ -459,7 +502,7 @@ function productTile(p) {
                      .reduce((s, i) => s + Number(i.qty), 0);
   const media = p.photo
     ? `<img src="${esc(p.photo)}" alt="" loading="lazy">`
-    : `<span class="ph">${p.unit === "kg" ? "⚖️" : "📦"}</span>`;
+    : `<span class="ph">${icon(p.unit === "kg" ? "scale" : "box", 30)}</span>`;
   return `
     <button class="ptile${inCart ? " picked" : ""}" data-prod="${p.id}">
       <div class="ptile-img">${media}${inCart ? `<span class="badge-qty">${qty(inCart)} ${esc(p.unit)}</span>` : ""}</div>
@@ -471,7 +514,7 @@ function productTile(p) {
 const cartTotal = () => CART.reduce((s, i) => s + i.qty * i.price, 0);
 
 function cartRows() {
-  if (!CART.length) return '<div class="empty"><i>🧺</i>Savat bo\'sh</div>';
+  if (!CART.length) return `<div class="empty">${icon("cart", 30)}Savat bo'sh</div>`;
   return CART.map((i, idx) => `
     <div class="row">
       <div class="row-main" data-act="edit" data-i="${idx}">
@@ -479,7 +522,7 @@ function cartRows() {
         <div class="row-sub">${qty(i.qty)} ${esc(i.unit)} × ${money(i.price)}</div>
       </div>
       <div class="row-end num">${money(i.qty * i.price)}</div>
-      <button class="btn danger sm" data-act="del" data-i="${idx}">✕</button>
+      <button class="btn danger sm" data-act="del" data-i="${idx}">${icon("close", 16)}</button>
     </div>`).join("");
 }
 
@@ -566,11 +609,11 @@ async function pickCustomer(onPick, allowQuick) {
     <h2>Mijoz tanlang</h2>
     <input id="q" placeholder="Ism yoki telefon bo'yicha qidirish">
     <div class="btn-row">
-      ${allowQuick ? '<button class="btn line" data-quick>🚶 Tezkor savdo</button>' : ""}
+      ${allowQuick ? '<button class="btn line" data-quick>${icon("person", 18)} Tezkor savdo</button>' : ""}
       <button class="btn ghost" data-new>➕ Yangi mijoz</button>
     </div>
     <div class="card tight" id="list" style="margin-top:10px">${list.map(customerRow).join("") ||
-      '<div class="empty"><i>👥</i>Mijoz yo\'q</div>'}</div>
+      `<div class="empty">${icon("users", 30)}Mijoz yo'q</div>`}</div>
   `);
   const draw = (items) => { $("#list", sheetEl).innerHTML = items.map(customerRow).join("") ||
     '<div class="empty">Topilmadi</div>'; };
@@ -592,7 +635,7 @@ async function pickCustomer(onPick, allowQuick) {
 
 function customerRow(c) {
   return `<div class="row" data-customer="${c.id}">
-    ${c.photo ? `<img class="thumb" src="${esc(c.photo)}" alt="">` : '<div class="thumb">👤</div>'}
+    ${c.photo ? `<img class="thumb" src="${esc(c.photo)}" alt="">` : '<div class="thumb">${icon("person", 20)}</div>'}
     <div class="row-main"><div class="row-title">${esc(c.name)}</div>
       <div class="row-sub">${esc(c.phone || "telefon yo'q")}</div></div>
     <div class="row-end">${c.balance > 0
@@ -608,7 +651,7 @@ async function pickProduct(onPick) {
     <h2>Mahsulot tanlang</h2>
     <input id="q" placeholder="Nomi bo'yicha qidirish">
     <div class="card tight" id="list" style="margin-top:10px">${list.map(productRow).join("") ||
-      '<div class="empty"><i>📦</i>Mahsulot yo\'q</div>'}</div>
+      `<div class="empty">${icon("box", 30)}Mahsulot yo'q</div>`}</div>
   `);
   $("#q", sheetEl).oninput = (e) => {
     const term = e.target.value.toLowerCase();
@@ -626,7 +669,7 @@ async function pickProduct(onPick) {
 
 function productRow(p) {
   return `<div class="row" data-product="${p.id}">
-    ${p.photo ? `<img class="thumb" src="${esc(p.photo)}" alt="">` : '<div class="thumb">📦</div>'}
+    ${p.photo ? `<img class="thumb" src="${esc(p.photo)}" alt="">` : '<div class="thumb">${icon("box", 20)}</div>'}
     <div class="row-main"><div class="row-title">${esc(p.name)}</div>
       <div class="row-sub">${esc(p.price_label)} · ${esc(p.unit)}</div></div>
     <div class="row-end num">${qty(p.stock)}</div>
@@ -640,10 +683,10 @@ async function screenProducts() {
   await guard(async () => {
     const list = await api("/products");
     render(`
-      <div class="search"><input id="q" placeholder="🔎 Mahsulot qidirish"></div>
-      ${ME.user.is_manager ? '<button class="btn ghost" data-act="new">➕ Yangi mahsulot</button><div style="height:10px"></div>' : ""}
+      <div class="search"><input id="q" placeholder="Mahsulot qidirish"></div>
+      ${ME.user.is_manager ? '<button class="btn ghost" data-act="new">${icon("plus", 18)} Yangi mahsulot</button><div style="height:10px"></div>' : ""}
       <div class="card tight" id="list">${list.map(productRow).join("") ||
-        '<div class="empty"><i>📦</i>Hali mahsulot qo\'shilmagan</div>'}</div>
+        `<div class="empty">${icon("box", 30)}Hali mahsulot qo'shilmagan</div>`}</div>
     `);
     $("#q").oninput = (e) => {
       const term = e.target.value.toLowerCase();
@@ -683,7 +726,7 @@ async function sheetProduct(product, after) {
     <div id="photoPreview">${editing && product.photo ? `<img src="${esc(product.photo)}" style="width:100%;max-height:180px;object-fit:cover;border-radius:14px;margin-top:8px">` : ""}</div>
     <div style="height:14px"></div>
     <button class="btn" id="save">${editing ? "Saqlash" : "Qo'shish"}</button>
-    ${editing ? '<div style="height:8px"></div><button class="btn danger" id="del">🗑 O\'chirish</button>' : ""}
+    ${editing ? '<div style="height:8px"></div><button class="btn danger" id="del">${icon("trash", 16)} O\'chirish</button>' : ""}
   `);
 
   let photoUrl = editing ? product.photo : null;
@@ -734,13 +777,13 @@ async function screenCustomers() {
         <div class="num-lg debt">${money(debt)}</div>
         <div class="row-sub">${list.length} ta mijoz</div>
       </div>
-      <div class="search"><input id="q" placeholder="🔎 Ism yoki telefon"></div>
+      <div class="search"><input id="q" placeholder="Ism yoki telefon"></div>
       <button class="btn ghost" data-act="new">➕ Yangi mijoz</button>
       <div style="height:10px"></div>
       <div class="seg"><button class="on" data-f="all">Hammasi</button>
         <button data-f="debt">Qarzdorlar</button></div>
       <div class="card tight" id="list">${list.map(customerRow).join("") ||
-        '<div class="empty"><i>👥</i>Mijoz yo\'q</div>'}</div>
+        `<div class="empty">${icon("users", 30)}Mijoz yo'q</div>`}</div>
     `);
     let filter = "all", term = "";
     const draw = () => {
@@ -832,7 +875,7 @@ async function sheetCustomerDetail(id) {
 }
 
 function ledgerList(items) {
-  if (!items.length) return '<div class="empty"><i>📊</i>Yozuvlar yo\'q</div>';
+  if (!items.length) return `<div class="empty">${icon("chart", 30)}Yozuvlar yo'q</div>`;
   const label = { initial: "Boshlang'ich", correction: "To'g'rilash", sale: "Savdo",
                   payment: "To'lov", order: "Buyurtma" };
   return items.map((e) => `<div class="row" style="cursor:default">
@@ -844,7 +887,7 @@ function ledgerList(items) {
 }
 
 function salesList(items) {
-  if (!items.length) return '<div class="empty"><i>🧾</i>Xaridlar yo\'q</div>';
+  if (!items.length) return `<div class="empty">${icon("chart", 30)}Xaridlar yo'q</div>`;
   return items.map((s) => `<div class="row" style="cursor:default">
     <div class="row-main"><div class="row-title">#${s.id} · ${money(s.total)} so'm</div>
       <div class="row-sub">${dateFmt(s.date)} · ${esc(s.items.map((i) => i.name).join(", "))}</div></div>
@@ -881,7 +924,7 @@ function sheetBalanceOp(customer, op) {
 function orderRow(o) {
   const [label, cls] = STATUS[o.status] || [o.status, ""];
   return `<div class="row" data-order="${o.id}">
-    <div class="thumb">🧾</div>
+    <div class="thumb">${icon("chart", 20)}</div>
     <div class="row-main"><div class="row-title">#${o.id} · ${esc(o.customer)}</div>
       <div class="row-sub">${esc(o.needed_at || dateFmt(o.date))} · ${DELIVERY[o.delivery]}</div></div>
     <div class="row-end"><span class="badge ${cls}">${label}</span><br>
@@ -899,7 +942,7 @@ async function screenOrders() {
       <div class="seg"><button class="on" data-f="open">Ochiq (${open.length})</button>
         <button data-f="all">Hammasi (${all.length})</button></div>
       <div class="card tight" id="list">${open.map(orderRow).join("") ||
-        '<div class="empty"><i>📭</i>Ochiq buyurtma yo\'q</div>'}</div>
+        `<div class="empty">${icon("inbox", 30)}Ochiq buyurtma yo'q</div>`}</div>
     `);
     view.onclick = (e) => {
       const f = e.target.closest("[data-f]");
@@ -930,10 +973,10 @@ function sheetOrder(id) {
 
   let actions = "";
   if (staff) {
-    if (o.status === "new") actions = `<button class="btn" data-op="price">💵 Narxlash va yuborish</button>`;
-    else if (o.status === "priced") actions = `<button class="btn line" data-op="price">✏️ Narxni o'zgartirish</button>`;
-    else if (o.status === "confirmed") actions = `<button class="btn" data-op="schedule">⏰ Yetkazish vaqtini belgilash</button>`;
-    else if (o.status === "scheduled") actions = `<button class="btn" data-op="done">📦 Yetkazildi</button>`;
+    if (o.status === "new") actions = `<button class="btn" data-op="price">Narxlash va yuborish</button>`;
+    else if (o.status === "priced") actions = `<button class="btn line" data-op="price">${icon("edit", 18)} Narxni o'zgartirish</button>`;
+    else if (o.status === "confirmed") actions = `<button class="btn" data-op="schedule">Yetkazish vaqtini belgilash</button>`;
+    else if (o.status === "scheduled") actions = `<button class="btn" data-op="done">Yetkazildi</button>`;
     if (!["done", "cancelled"].includes(o.status))
       actions += `<div style="height:8px"></div><button class="btn danger" data-op="cancel">Bekor qilish</button>`;
   }
@@ -1026,9 +1069,9 @@ async function screenCatalog() {
   await guard(async () => {
     const list = await api("/products");
     render(`
-      <div class="search"><input id="q" placeholder="🔎 Mahsulot qidirish"></div>
+      <div class="search"><input id="q" placeholder="Mahsulot qidirish"></div>
       <div class="pgrid" id="pgrid">${list.map(productTile).join("") ||
-        '<div class="empty wide"><i>🛍</i>Katalog bo\'sh</div>'}</div>
+        `<div class="empty wide">${icon("bag", 30)}Katalog bo'sh</div>`}</div>
       ${cartBar()}
     `);
     $("#q").oninput = (e) => {
@@ -1058,7 +1101,7 @@ function sheetOrderCheckout() {
       <div class="row">
         <div class="row-main"><div class="row-title">${esc(i.name)}</div>
           <div class="row-sub">${qty(i.qty)} ${esc(i.unit)}</div></div>
-        <button class="btn danger sm" data-del="${idx}">✕</button>
+        <button class="btn danger sm" data-del="${idx}">${icon("close", 16)}</button>
       </div>`).join("")}</div>
     <label>Qachonga kerak?</label>
     <input id="needed" placeholder="Masalan: ertaga ertalab">
@@ -1103,7 +1146,7 @@ async function screenMyOrders() {
     const list = await api("/orders?scope=mine");
     LAST.orders = list;
     render(`<div class="card tight">${list.map(myOrderRow).join("") ||
-      '<div class="empty"><i>📦</i>Hali buyurtma bermagansiz</div>'}</div>`);
+      `<div class="empty">${icon("box", 30)}Hali buyurtma bermagansiz</div>`}</div>`);
     view.onclick = (e) => {
       const row = e.target.closest("[data-order]");
       if (row) sheetMyOrder(Number(row.dataset.order));
@@ -1137,11 +1180,11 @@ function sheetMyOrder(id) {
         <div class="row-end num">${money(i.amount)}</div></div>`).join("")}</div>
     <div class="metric" style="margin:10px 0"><div class="metric-label">Jami</div>
       <div class="num-lg">${money(o.total)}</div></div>
-    ${o.delivery_time ? `<p class="hint">⏰ Kelishilgan vaqt: <b>${esc(o.delivery_time)}</b></p>` : ""}
+    ${o.delivery_time ? `<p class="hint">Kelishilgan vaqt: <b>${esc(o.delivery_time)}</b></p>` : ""}
     ${needDriverTime ? `<label>Haydovchingiz qachon boradi?</label>
       <input id="driver" placeholder="Masalan: ertaga soat 9:00">` : ""}
     ${o.status === "priced" ? `<div style="height:12px"></div>
-      <button class="btn" data-op="confirm">✅ Tasdiqlayman</button>
+      <button class="btn" data-op="confirm">Tasdiqlayman</button>
       <div style="height:8px"></div>
       <button class="btn danger" data-op="cancel">Bekor qilaman</button>` : ""}
     ${["new"].includes(o.status) ? `<div style="height:12px"></div>
@@ -1197,35 +1240,35 @@ function screenMore() {
   render(`
     <div class="card tight">
       ${staff ? `
-      <div class="row" data-go2="products"><div class="thumb">📦</div>
+      <div class="row" data-go2="products"><div class="thumb">${icon("box", 20)}</div>
         <div class="row-main"><div class="row-title">Mahsulotlar</div>
           <div class="row-sub">narx, rasm, qoldiq</div></div><div class="row-end">›</div></div>
-      <div class="row" data-go2="sales"><div class="thumb">🧾</div>
+      <div class="row" data-go2="sales"><div class="thumb">${icon("chart", 20)}</div>
         <div class="row-main"><div class="row-title">Savdolar tarixi</div>
           <div class="row-sub">barcha yopilgan savdolar</div></div><div class="row-end">›</div></div>` : ""}
       ${manager ? `
-      <div class="row" data-go2="suppliers"><div class="thumb">🚚</div>
+      <div class="row" data-go2="suppliers"><div class="thumb">${icon("truck", 20)}</div>
         <div class="row-main"><div class="row-title">Yetkazib beruvchilar</div>
           <div class="row-sub">nomi va telefoni</div></div><div class="row-end">›</div></div>
-      <div class="row" data-go2="methods"><div class="thumb">💳</div>
+      <div class="row" data-go2="methods"><div class="thumb">${icon("card", 20)}</div>
         <div class="row-main"><div class="row-title">To'lov turlari</div>
           <div class="row-sub">naqd, karta, o'tkazma…</div></div><div class="row-end">›</div></div>
-      <div class="row" data-go2="staff"><div class="thumb">👤</div>
+      <div class="row" data-go2="staff"><div class="thumb">${icon("person", 20)}</div>
         <div class="row-main"><div class="row-title">Hodimlar va takliflar</div>
           <div class="row-sub">login yaratish, havola</div></div><div class="row-end">›</div></div>
-      <div class="row" data-go2="license"><div class="thumb">🔐</div>
+      <div class="row" data-go2="license"><div class="thumb">${icon("lock", 20)}</div>
         <div class="row-main"><div class="row-title">Obuna</div>
           <div class="row-sub">${ME.shop.license_ok ? ME.shop.days_left + " kun qoldi" : "muddati tugagan"}</div></div>
         <div class="row-end">›</div></div>` : ""}
       ${ME.shops.length > 1 ? `
-      <div class="row" data-go2="shops"><div class="thumb">🏬</div>
+      <div class="row" data-go2="shops"><div class="thumb">${icon("store", 20)}</div>
         <div class="row-main"><div class="row-title">Biznesni almashtirish</div>
           <div class="row-sub">${ME.shops.length} ta biznes</div></div><div class="row-end">›</div></div>` : ""}
-      <div class="row" data-go2="about"><div class="thumb">ℹ️</div>
+      <div class="row" data-go2="about"><div class="thumb">${icon("info", 20)}</div>
         <div class="row-main"><div class="row-title">Dastur haqida</div>
           <div class="row-sub">v${esc(ME.about.version)}</div></div><div class="row-end">›</div></div>
       ${standalone ? `
-      <div class="row" data-go2="logout"><div class="thumb">🚪</div>
+      <div class="row" data-go2="logout"><div class="thumb">${icon("exit", 20)}</div>
         <div class="row-main"><div class="row-title">Chiqish</div>
           <div class="row-sub">${esc(ME.user.phone || "")}</div></div><div class="row-end">›</div></div>` : ""}
     </div>
@@ -1257,11 +1300,11 @@ async function sheetSuppliers() {
     <h2>Yetkazib beruvchilar</h2>
     <div class="card tight">${list.map((s) => `
       <div class="row" style="cursor:default">
-        <div class="thumb">🚚</div>
+        <div class="thumb">${icon("truck", 20)}</div>
         <div class="row-main"><div class="row-title">${esc(s.name)}</div>
           <div class="row-sub">${esc(s.phone || "telefon yo'q")}</div></div>
-        <button class="btn danger sm" data-del="${s.id}">✕</button>
-      </div>`).join("") || '<div class="empty"><i>🚚</i>Ro\'yxat bo\'sh</div>'}</div>
+        <button class="btn danger sm" data-del="${s.id}">${icon("close", 16)}</button>
+      </div>`).join("") || `<div class="empty">${icon("truck", 30)}Ro'yxat bo'sh</div>`}</div>
     <label>Nomi</label><input id="name" placeholder="Masalan: Agro Savdo">
     <label>Telefon</label><input id="phone" type="tel" placeholder="+998 90 123 45 67">
     <div style="height:12px"></div>
@@ -1287,9 +1330,9 @@ async function sheetMethods() {
     <h2>To'lov turlari</h2>
     <div class="card tight">${list.map((m) => `
       <div class="row" style="cursor:default">
-        <div class="thumb">💳</div>
+        <div class="thumb">${icon("card", 20)}</div>
         <div class="row-main"><div class="row-title">${esc(m.name)}</div></div>
-        <button class="btn danger sm" data-del="${m.id}">✕</button>
+        <button class="btn danger sm" data-del="${m.id}">${icon("close", 16)}</button>
       </div>`).join("")}</div>
     <label>Yangi tur</label><input id="name" placeholder="Masalan: Click, Payme">
     <div style="height:12px"></div>
@@ -1333,7 +1376,7 @@ async function screenStaff() {
           <div class="row-main"><div class="row-title">${roleLabel(i.role)} uchun</div>
             <div class="row-sub" style="word-break:break-all">${esc(i.link)}</div></div>
           <div class="row-end">${i.uses} ta</div>
-        </div>`).join("") || '<div class="empty"><i>🔗</i>Havola yaratilmagan</div>'}</div>
+        </div>`).join("") || `<div class="empty">${icon("link", 30)}Havola yaratilmagan</div>`}</div>
       <div class="btn-row">
         <button class="btn line" data-inv="seller">Sotuvchi</button>
         <button class="btn line" data-inv="admin">Admin</button>
@@ -1384,9 +1427,9 @@ function sheetUser(u) {
   sheet(`
     <h2>${esc(u.name)}</h2>
     <p class="hint">${esc(u.phone || "login yo'q")} · ${roleLabel(u.role)} · ${u.status}</p>
-    ${u.status === "pending" ? `<button class="btn" data-st="approved">✅ Tasdiqlash</button>
+    ${u.status === "pending" ? `<button class="btn" data-st="approved">Tasdiqlash</button>
       <div style="height:8px"></div>
-      <button class="btn danger" data-st="blocked">🚫 Rad etish</button>
+      <button class="btn danger" data-st="blocked">Rad etish</button>
       <div style="height:14px"></div>` : ""}
     <label>Rolini o'zgartirish</label>
     <select id="role">
@@ -1428,7 +1471,7 @@ function sheetShops() {
     <h2>Biznesni tanlang</h2>
     <div class="card tight">${ME.shops.map((s) => `
       <div class="row" data-shop="${s.id}">
-        <div class="thumb">🏬</div>
+        <div class="thumb">${icon("store", 20)}</div>
         <div class="row-main"><div class="row-title">${esc(s.name)}</div>
           <div class="row-sub">${roleLabel(s.role)}</div></div>
         <div class="row-end">${s.active ? '<span class="badge ok">faol</span>' : "›"}</div>
