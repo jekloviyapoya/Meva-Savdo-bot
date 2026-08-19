@@ -112,6 +112,7 @@ async function boot() {
   registerServiceWorker();
   loading();
   if (standalone && !getToken()) return screenPassword();
+  if (standalone && bioCred()) return screenLock();
   try {
     ME = await api("/me");
   } catch (err) {
@@ -128,28 +129,94 @@ async function boot() {
 }
 
 /* Telegramdan tashqarida: telefon + parol bilan kirish. */
+function sheetPassword() {
+  sheet(`
+    <h2>Parolni o'zgartirish</h2>
+    <p class="hint">Login o'zgarmaydi: <b>${esc(ME.user.phone || "—")}</b></p>
+    <label for="oldPwd">Eski parol</label>
+    <input id="oldPwd" type="password" autocomplete="current-password"
+           placeholder="hozirgi parolingiz">
+    <label for="newPwd">Yangi parol</label>
+    <input id="newPwd" type="password" autocomplete="new-password"
+           placeholder="kamida 6 belgi">
+    <label for="newPwd2">Yangi parolni takrorlang</label>
+    <input id="newPwd2" type="password" autocomplete="new-password">
+    <div style="height:14px"></div>
+    <button class="btn" id="savePwd">Saqlash</button>
+  `);
+  $("#savePwd", sheetEl).onclick = () => guard(async () => {
+    const oldPwd = $("#oldPwd", sheetEl).value;
+    const a = $("#newPwd", sheetEl).value;
+    const b = $("#newPwd2", sheetEl).value;
+    if (a.length < 6) return toast("Parol kamida 6 belgi bo'lsin", true);
+    if (a !== b) return toast("Yangi parollar mos kelmadi", true);
+    await api("/auth/change-password", {
+      method: "POST", body: { old_password: oldPwd, new_password: a },
+    });
+    closeSheet(); haptic("medium");
+    toast("Parol o'zgartirildi");
+  });
+}
+
+async function toggleBio() {
+  if (bioCred()) {
+    setBioCred("");
+    toast("Biometrik kirish o'chirildi");
+  } else {
+    await enableBiometrics();
+  }
+  screenMore();
+}
+
+/* ---------------- Kirish (Telegramdan tashqarida) ---------------- */
+
+const PHONE_KEY = "nm_login_phone";
+const BIO_KEY = "nm_bio_cred";
+const savedPhone = () => { try { return localStorage.getItem(PHONE_KEY) || ""; } catch (e) { return ""; } };
+const savePhone = (v) => { try { v ? localStorage.setItem(PHONE_KEY, v) : localStorage.removeItem(PHONE_KEY); } catch (e) {} };
+const bioCred = () => { try { return localStorage.getItem(BIO_KEY) || ""; } catch (e) { return ""; } };
+const setBioCred = (v) => { try { v ? localStorage.setItem(BIO_KEY, v) : localStorage.removeItem(BIO_KEY); } catch (e) {} };
+
+const bioSupported = () => Boolean(
+  window.PublicKeyCredential && navigator.credentials && location.protocol === "https:"
+);
+
+/* Login ekrani.
+
+   Telefon raqam brauzerda saqlanadi va keyingi safar o'zi to'ldiriladi.
+   Maydonlar haqiqiy <form> ichida — shundagina brauzer parolni saqlashni
+   taklif qiladi va keyingi kirishda o'zi to'ldiradi. */
 function screenPassword(errMsg, options) {
   topbar.hidden = true; tabbar.hidden = true;
+  const phone = LAST.loginPhone || savedPhone();
+
   render(`<div class="center-screen">
-    <div class="logo">🏪</div>
+    <div class="logo">${icon("store", 34)}</div>
     <h2>Savdo tizimi</h2>
     <p style="color:var(--muted);margin:8px 0 18px">
       Login — telefon raqamingiz. Parolni biznes egangiz yoki admin bergan.</p>
-    <div class="card" style="text-align:left">
+
+    <form class="card" id="loginForm" style="text-align:left" action="/app" method="post">
       ${options && options.length ? `
         <label>Qaysi biznesga kiramiz?</label>
         <select id="which">${options.map((o) =>
           `<option value="${o.user_id}">${esc(o.shop)} · ${esc(o.role)}</option>`).join("")}</select>
         <div style="height:12px"></div>` : `
         <label for="phone">Telefon raqam</label>
-        <input id="phone" type="tel" inputmode="tel" autocomplete="username"
-               placeholder="+998 90 123 45 67" value="${esc(LAST.loginPhone || "")}">
+        <input id="phone" name="username" type="tel" inputmode="tel"
+               autocomplete="username tel" placeholder="+998 90 123 45 67"
+               value="${esc(phone)}">
         <label for="pwd">Parol</label>
-        <input id="pwd" type="password" autocomplete="current-password" placeholder="••••••••">
+        <input id="pwd" name="password" type="password"
+               autocomplete="current-password" placeholder="••••••••">
         <div style="height:12px"></div>`}
       ${errMsg ? `<p class="err-text">${esc(errMsg)}</p>` : ""}
-      <button class="btn" id="pwdBtn">Kirish</button>
-    </div>
+      <button class="btn" type="submit" id="pwdBtn">Kirish</button>
+      ${!options && bioCred() && bioSupported() ? `
+        <button class="btn line" type="button" id="bioBtn" style="margin-top:8px">
+          ${icon("lock", 18)} Barmoq izi bilan kirish</button>` : ""}
+    </form>
+
     <div id="installBox"></div>
     <p style="color:var(--muted);font-size:.82rem;margin-top:14px">
       Telegram orqali kirsangiz parol kerak emas — botdagi «Ilovani ochish» tugmasini bosing.</p>
@@ -157,11 +224,24 @@ function screenPassword(errMsg, options) {
   </div>`);
   showInstallHint();
 
-  $("#pwdBtn").onclick = () => guard(async () => {
+  const form = $("#loginForm");
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    doLogin(options);
+  };
+  if ($("#bioBtn")) $("#bioBtn").onclick = () => unlockWithBiometrics();
+
+  // Token bor, biometrika yoqilgan — darhol so'raymiz
+  if (!options && getToken() && bioCred()) unlockWithBiometrics(true);
+}
+
+function doLogin(options) {
+  return guard(async () => {
     const body = options && options.length
       ? { phone: LAST.loginPhone, password: LAST.loginPwd, user_id: Number($("#which").value) }
       : { phone: $("#phone").value.trim(), password: $("#pwd").value };
     if (!body.phone || !body.password) return toast("Telefon va parolni kiriting", true);
+
     LAST.loginPhone = body.phone; LAST.loginPwd = body.password;
     let res;
     try {
@@ -170,12 +250,96 @@ function screenPassword(errMsg, options) {
       return screenPassword(e.message);
     }
     if (res.choose) return screenPassword(null, res.choose);
+
     setToken(res.token);
+    savePhone(body.phone);          // keyingi safar o'zi to'ladi
     LAST.loginPwd = null;
     haptic("medium");
     ME = await api("/me");
     startApp();
   });
+}
+
+/* Token bor, lekin biometrika yoqilgan — avval barmoq izi so'raladi. */
+function screenLock() {
+  topbar.hidden = true; tabbar.hidden = true;
+  render(`<div class="center-screen">
+    <div class="logo">${icon("lock", 34)}</div>
+    <h2>${esc(savedPhone() || "Savdo tizimi")}</h2>
+    <p style="color:var(--muted);margin:8px 0 20px">Ilovani ochish uchun barmoq izingiz kerak.</p>
+    <button class="btn" id="unlock">${icon("lock", 18)} Ochish</button>
+    <button class="btn line" id="usePwd" style="margin-top:8px">Parol bilan kirish</button>
+    <p class="credit">Ulug'bek Bekbergenov — NM GROUP</p>
+  </div>`);
+  $("#unlock").onclick = () => unlockWithBiometrics();
+  $("#usePwd").onclick = () => { setBioCred(""); screenPassword(); };
+  unlockWithBiometrics(true);
+}
+
+/* ---------------- Biometrik qulf ----------------
+
+   Muhim: bu qurilma qulfi. Barmoq izi telefoningizdagi saqlangan kirish
+   tokenini ochadi — server tomonida parol o'rnini bosmaydi. Ya'ni telefoningiz
+   birovning qo'liga tushsa, ilovani ocha olmaydi. */
+
+const b64 = {
+  enc: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""),
+  dec: (str) => {
+    const s = str.replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(s + "=".repeat((4 - s.length % 4) % 4));
+    return Uint8Array.from(raw, (ch) => ch.charCodeAt(0));
+  },
+};
+
+async function enableBiometrics() {
+  if (!bioSupported()) return toast("Bu qurilmada biometrika ishlamaydi", true);
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userId = crypto.getRandomValues(new Uint8Array(16));
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: "Savdo tizimi", id: location.hostname },
+        user: { id: userId, name: ME.user.phone || "user", displayName: ME.user.name },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required",
+          residentKey: "preferred",
+        },
+        timeout: 60000,
+        attestation: "none",
+      },
+    });
+    if (!cred) throw new Error("Bekor qilindi");
+    setBioCred(b64.enc(cred.rawId));
+    haptic("medium");
+    toast("Biometrik kirish yoqildi");
+  } catch (e) {
+    toast(e.message || "Yoqib bo'lmadi", true);
+  }
+}
+
+async function unlockWithBiometrics(silent) {
+  if (!bioCred() || !getToken()) return;
+  try {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: b64.dec(bioCred()), type: "public-key" }],
+        userVerification: "required",
+        timeout: 60000,
+      },
+    });
+    haptic("medium");
+    loading();
+    ME = await api("/me");
+    startApp();
+  } catch (e) {
+    if (!silent) toast("Tanilmadi, parol bilan kiring", true);
+  }
 }
 
 function logout() {
@@ -422,10 +586,8 @@ const DELIVERY = {
 };
 
 async function screenSale() {
-  CART = [];
-  LAST.saleCustomer = null;
-  LAST.saleProducts = null;
-  LAST.saleTerm = "";
+  // Savat va tanlangan mijoz saqlanib qoladi — boshqa bo'limga o'tib qaytilsa
+  // ish yo'qolmasin. Savdo yakunlangandagina tozalanadi.
   await drawSale();
 }
 
@@ -458,6 +620,7 @@ async function drawSale() {
     <div class="section-title">Savat</div>
     <div class="card tight" id="cartBox">${cartRows()}</div>
     ${CART.length ? `<button class="btn" data-act="finish">Yakunlash · ${money(cartTotal())} so'm</button>
+      <button class="btn line" data-act="clear" style="margin-top:8px">${icon("trash", 17)} Savatni tozalash</button>
       <div style="height:14px"></div>` : ""}
 
     <div class="section-title">Mahsulotlar</div>
@@ -488,6 +651,9 @@ async function drawSale() {
     if (!a) return;
     if (a.dataset.act === "pickCustomer") return pickCustomer((c) => { LAST.saleCustomer = c; drawSale(); }, true);
     if (a.dataset.act === "finish") return sheetCheckout();
+    if (a.dataset.act === "clear") {
+      CART = []; LAST.saleCustomer = null; haptic(); return drawSale();
+    }
     if (a.dataset.act === "del") { CART.splice(Number(a.dataset.i), 1); drawSale(); }
     if (a.dataset.act === "edit") { sheetCartItem(null, Number(a.dataset.i)); }
     if (a.dataset.act === "newProduct") return sheetProduct(null, async () => {
@@ -1267,6 +1433,15 @@ function screenMore() {
       <div class="row" data-go2="about"><div class="thumb">${icon("info", 20)}</div>
         <div class="row-main"><div class="row-title">Dastur haqida</div>
           <div class="row-sub">v${esc(ME.about.version)}</div></div><div class="row-end">›</div></div>
+      <div class="row" data-go2="password"><div class="thumb">${icon("lock", 20)}</div>
+        <div class="row-main"><div class="row-title">Parolni o'zgartirish</div>
+          <div class="row-sub">web va mobil ilovaga kirish uchun</div></div>
+        <div class="row-end">›</div></div>
+      ${standalone && bioSupported() ? `
+      <div class="row" data-go2="bio"><div class="thumb">${icon("check", 20)}</div>
+        <div class="row-main"><div class="row-title">Biometrik kirish</div>
+          <div class="row-sub">${bioCred() ? "yoqilgan" : "o'chirilgan"}</div></div>
+        <div class="row-end">${bioCred() ? "O'chirish" : "Yoqish"}</div></div>` : ""}
       ${standalone ? `
       <div class="row" data-go2="logout"><div class="thumb">${icon("exit", 20)}</div>
         <div class="row-main"><div class="row-title">Chiqish</div>
@@ -1282,7 +1457,8 @@ function screenMore() {
     haptic();
     ({ products: screenProducts, sales: screenSales, suppliers: sheetSuppliers,
        methods: sheetMethods, staff: screenStaff, license: sheetLicense,
-       shops: sheetShops, about: sheetAbout, logout: logout })[r.dataset.go2]();
+       shops: sheetShops, about: sheetAbout, logout: logout,
+       password: sheetPassword, bio: toggleBio })[r.dataset.go2]();
   };
 }
 

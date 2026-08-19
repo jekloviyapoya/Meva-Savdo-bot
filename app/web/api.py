@@ -26,8 +26,8 @@ from app.models import (
 )
 from app.services import (
     apply_balance, create_invite, find_login, invite_link, managers, memberships,
-    money, normalize_phone, qty_fmt, set_balance, staff_members, switch_shop,
-    verify_password,
+    hash_password, money, normalize_phone, qty_fmt, set_balance, staff_members,
+    switch_shop, verify_password,
 )
 from app.web.auth import TgContext, get_context, make_token
 
@@ -215,6 +215,30 @@ async def auth_password(payload: dict = Body(...),
         "user": {"id": user.id, "name": user.full_name, "role": user.role.value},
         "shop": {"id": shop.id, "name": shop.name},
     }
+
+
+@router.post("/auth/change-password")
+async def change_password(payload: dict = Body(...), c: TgContext = Depends(ctx),
+                          session: AsyncSession = Depends(get_session)):
+    """Parolni almashtirish.
+
+    Paroli bor foydalanuvchi eskisini tasdiqlaydi. Telegram orqali kirgan va
+    hali paroli yo'q foydalanuvchi esa birinchi parolini shu yerda o'rnatadi.
+    """
+    new = (payload.get("new_password") or "").strip()
+    if len(new) < 6:
+        raise HTTPException(400, "Parol kamida 6 belgidan iborat bo'lsin")
+
+    user = await session.get(User, c.user.id)
+    if user.password_hash:
+        old = payload.get("old_password") or ""
+        if not verify_password(old, user.password_hash):
+            raise HTTPException(403, "Eski parol noto'g'ri")
+
+    user.password_hash = hash_password(new)
+    await session.commit()
+    return {"ok": True, "login": user.phone,
+            "had_password": bool(payload.get("old_password"))}
 
 
 @router.post("/login")

@@ -1,6 +1,6 @@
 /* Service worker — ilova qobig'ini keshlaydi.
    Muhim: API javoblari keshlanmaydi, aks holda eski ma'lumot ko'rinardi. */
-const CACHE = "nm-savdo-v5";
+const CACHE = "nm-savdo-v6";
 const SHELL = [
   "/app",
   "/static/app.css",
