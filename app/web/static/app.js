@@ -129,6 +129,74 @@ async function boot() {
 }
 
 /* Telegramdan tashqarida: telefon + parol bilan kirish. */
+/* Telegram ichidan brauzerga o'tish: login-parol yaratib beradi. */
+function sheetWebAccess(prefillPhone) {
+  const phone = prefillPhone || ME.user.phone || "";
+  sheet(`
+    <h2>Webda ochish</h2>
+    <p class="hint">Ilovani brauzerda yoki telefon ekraniga o'rnatib ishlatish uchun
+      login va parol kerak. Login — telefon raqamingiz.</p>
+    ${phone ? "" : `
+      <label for="waPhone">Telefon raqamingiz</label>
+      <input id="waPhone" type="tel" inputmode="tel" placeholder="+998 90 123 45 67">`}
+    <p class="hint" style="color:var(--danger)">Diqqat: yangi parol yaratiladi,
+      eski parol (agar bo'lsa) ishlamay qoladi.</p>
+    <div style="height:10px"></div>
+    <button class="btn" id="waGo">${icon("lock", 18)} Parol yaratish</button>
+  `);
+  $("#waGo", sheetEl).onclick = () => guard(async () => {
+    const body = {};
+    const input = $("#waPhone", sheetEl);
+    if (input) {
+      if (!input.value.trim()) return toast("Telefon raqamni kiriting", true);
+      body.phone = input.value.trim();
+    }
+    let res;
+    try {
+      res = await api("/auth/web-access", { method: "POST", body });
+    } catch (e) {
+      if (e.message === "NEED_PHONE") return sheetWebAccess(" ");
+      throw e;
+    }
+    haptic("medium");
+    showWebCreds(res);
+  });
+}
+
+function showWebCreds(res) {
+  sheet(`
+    <h2>Tayyor</h2>
+    <p class="hint">Bu ma'lumotni saqlab qo'ying — parol boshqa ko'rsatilmaydi.</p>
+    <div class="card tight" style="margin:10px 0">
+      <div class="row" data-copy="${esc(res.login)}">
+        <div class="row-main"><div class="row-sub">Login</div>
+          <div class="row-title num">${esc(res.login)}</div></div>
+        <div class="row-end">nusxa</div></div>
+      <div class="row" data-copy="${esc(res.password)}">
+        <div class="row-main"><div class="row-sub">Parol</div>
+          <div class="row-title num">${esc(res.password)}</div></div>
+        <div class="row-end">nusxa</div></div>
+    </div>
+    <button class="btn" id="waOpen">Brauzerda ochish</button>
+    <p class="hint" style="margin-top:10px">Ochilgach «Yana → Parolni o'zgartirish»
+      orqali o'zingizga qulay parol qo'yishingiz mumkin.</p>
+  `);
+
+  sheetEl.onclick = (e) => {
+    const row = e.target.closest("[data-copy]");
+    if (!row) return;
+    const text = row.dataset.copy;
+    if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+    haptic();
+    toast("Nusxa olindi");
+  };
+  $("#waOpen", sheetEl).onclick = () => {
+    const url = res.url || "/app";
+    if (tg && tg.openLink) tg.openLink(url, { try_instant_view: false });
+    else window.open(url, "_blank");
+  };
+}
+
 function sheetPassword() {
   sheet(`
     <h2>Parolni o'zgartirish</h2>
@@ -1521,6 +1589,11 @@ function screenMore() {
       <div class="row" data-go2="about"><div class="thumb">${icon("info", 20)}</div>
         <div class="row-main"><div class="row-title">Dastur haqida</div>
           <div class="row-sub">v${esc(ME.about.version)}</div></div><div class="row-end">›</div></div>
+      ${!standalone ? `
+      <div class="row" data-go2="web"><div class="thumb">${icon("download", 20)}</div>
+        <div class="row-main"><div class="row-title">Webda ochish</div>
+          <div class="row-sub">brauzer va telefon ilovasi uchun login-parol</div></div>
+        <div class="row-end">›</div></div>` : ""}
       <div class="row" data-go2="password"><div class="thumb">${icon("lock", 20)}</div>
         <div class="row-main"><div class="row-title">Parolni o'zgartirish</div>
           <div class="row-sub">web va mobil ilovaga kirish uchun</div></div>
@@ -1568,7 +1641,7 @@ function screenMore() {
        methods: sheetMethods, staff: screenStaff, license: sheetLicense,
        shops: sheetShops, about: sheetAbout, logout: logout,
        password: sheetPassword, bio: toggleBio, push: togglePush,
-       pushtest: sendTestPush })[r.dataset.go2]();
+       pushtest: sendTestPush, web: sheetWebAccess })[r.dataset.go2]();
   };
 }
 

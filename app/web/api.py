@@ -26,7 +26,8 @@ from app.models import (
 )
 from app.services import (
     apply_balance, create_invite, find_login, invite_link, managers, memberships,
-    hash_password, money, normalize_phone, qty_fmt, set_balance, staff_members,
+    generate_password, hash_password, money, normalize_phone, qty_fmt,
+    set_balance, staff_members,
     switch_shop, verify_password,
 )
 from app.push import (
@@ -294,6 +295,36 @@ async def push_test(c: TgContext = Depends(ctx),
         url="/app#orders", tag="test",
     )
     return {"devices": devices, "sent": sent}
+
+
+@router.post("/auth/web-access")
+async def web_access(payload: dict = Body(default={}), c: TgContext = Depends(ctx),
+                     session: AsyncSession = Depends(get_session)):
+    """Telegram ichidagi foydalanuvchiga brauzer uchun login-parol beradi.
+
+    Login — telefon raqami. Parol shu yerda yangidan yaratiladi, chunki eski
+    parolni ko'rsatib bo'lmaydi (u faqat shifrlangan holda saqlanadi).
+    """
+    user = await session.get(User, c.user.id)
+
+    phone = normalize_phone(payload.get("phone")) or user.phone
+    if not phone:
+        raise HTTPException(400, "NEED_PHONE")
+
+    clash = await session.scalar(
+        select(User).where(User.shop_id == user.shop_id, User.phone == phone,
+                           User.id != user.id)
+    )
+    if clash:
+        raise HTTPException(409, "Bu raqam shu biznesda boshqa hisobga biriktirilgan")
+
+    password = generate_password()
+    user.phone = phone
+    user.password_hash = hash_password(password)
+    await session.commit()
+
+    base = (settings.webapp_url or "").rstrip("/")
+    return {"login": phone, "password": password, "url": f"{base}/app" if base else "/app"}
 
 
 @router.post("/auth/change-password")
