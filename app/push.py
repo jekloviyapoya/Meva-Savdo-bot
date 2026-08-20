@@ -126,8 +126,11 @@ def _send_one(sub_info: dict, payload: str, private_key: str, claims: dict) -> i
     from pywebpush import WebPushException, webpush
 
     try:
+        # Urgency: high — telefon uxlab yotgan bo'lsa ham darhol uyg'otishga
+        # harakat qiladi. TTL 24 soat: telefon o'chiq bo'lsa, yoqilgach yetadi.
         webpush(subscription_info=sub_info, data=payload,
-                vapid_private_key=private_key, vapid_claims=dict(claims), ttl=86400)
+                vapid_private_key=private_key, vapid_claims=dict(claims),
+                ttl=86400, headers={"Urgency": "high"})
         return 200
     except WebPushException as exc:
         code = getattr(exc.response, "status_code", 0) if exc.response is not None else 0
