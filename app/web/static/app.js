@@ -374,6 +374,84 @@ function showInstallHint() {
   }
 }
 
+/* ---------------- Push bildirishnomalar ----------------
+
+   Telegram ichida ham, o'rnatilgan ilovada ham ishlaydi: brauzer push
+   xizmatiga obuna bo'ladi va manzilini serverga yuboradi. Mijoz buyurtma
+   berganda server o'sha manzilga xabar jo'natadi. */
+
+const pushSupported = () => Boolean(
+  "serviceWorker" in navigator && "PushManager" in window && window.Notification
+);
+
+function urlB64ToUint8(base64) {
+  const pad = "=".repeat((4 - base64.length % 4) % 4);
+  const raw = atob((base64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, (ch) => ch.charCodeAt(0));
+}
+
+async function currentPushSub() {
+  if (!pushSupported()) return null;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    return await reg.pushManager.getSubscription();
+  } catch (e) {
+    return null;
+  }
+}
+
+async function enablePush(quiet) {
+  if (!pushSupported()) {
+    if (!quiet) toast("Bu qurilma bildirishnomani qo'llamaydi", true);
+    return false;
+  }
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      if (!quiet) toast("Bildirishnomaga ruxsat berilmadi", true);
+      return false;
+    }
+    const { key } = await api("/push/key");
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8(key),
+      });
+    }
+    await api("/push/subscribe", { method: "POST", body: { subscription: sub.toJSON() } });
+    if (!quiet) { haptic("medium"); toast("Bildirishnoma yoqildi"); }
+    return true;
+  } catch (e) {
+    if (!quiet) toast(e.message || "Yoqib bo'lmadi", true);
+    return false;
+  }
+}
+
+async function disablePush() {
+  const sub = await currentPushSub();
+  if (sub) {
+    try { await api("/push/unsubscribe", { method: "POST", body: { endpoint: sub.endpoint } }); }
+    catch (e) {}
+    await sub.unsubscribe().catch(() => {});
+  }
+  toast("Bildirishnoma o'chirildi");
+}
+
+async function togglePush() {
+  const sub = await currentPushSub();
+  if (sub) await disablePush(); else await enablePush();
+  screenMore();
+}
+
+/* Ruxsat allaqachon berilgan bo'lsa, obunani jimgina yangilab qo'yamiz —
+   obuna vaqti-vaqti bilan brauzer tomonidan almashtiriladi. */
+async function refreshPush() {
+  if (!pushSupported() || Notification.permission !== "granted") return;
+  await enablePush(true);
+}
+
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -495,6 +573,7 @@ function startApp() {
   tabbar.innerHTML = tabs.map((t) =>
     `<button class="tab" data-tab="${t.id}">${icon(t.icon, 23)}<span>${t.label}</span></button>`).join("");
   go(TAB);
+  refreshPush();
 }
 
 /* Bosishlar hujjat darajasida ushlanadi — bu eng ishonchli usul: ekran qayta
@@ -1437,6 +1516,10 @@ function screenMore() {
         <div class="row-main"><div class="row-title">Parolni o'zgartirish</div>
           <div class="row-sub">web va mobil ilovaga kirish uchun</div></div>
         <div class="row-end">›</div></div>
+      <div class="row" data-go2="push"><div class="thumb">${icon("info", 20)}</div>
+        <div class="row-main"><div class="row-title">Bildirishnoma</div>
+          <div class="row-sub">yangi buyurtma haqida xabar</div></div>
+        <div class="row-end" id="pushState">…</div></div>
       ${standalone && bioSupported() ? `
       <div class="row" data-go2="bio"><div class="thumb">${icon("check", 20)}</div>
         <div class="row-main"><div class="row-title">Biometrik kirish</div>
@@ -1451,6 +1534,10 @@ function screenMore() {
     <p class="credit">${esc(ME.about.author)} — ${esc(ME.about.company)}</p>
   `);
   showInstallHint();
+  currentPushSub().then((sub) => {
+    const el = document.getElementById("pushState");
+    if (el) el.textContent = sub ? "yoqilgan" : "yoqish";
+  });
   view.onclick = (e) => {
     const r = e.target.closest("[data-go2]");
     if (!r) return;
@@ -1458,7 +1545,7 @@ function screenMore() {
     ({ products: screenProducts, sales: screenSales, suppliers: sheetSuppliers,
        methods: sheetMethods, staff: screenStaff, license: sheetLicense,
        shops: sheetShops, about: sheetAbout, logout: logout,
-       password: sheetPassword, bio: toggleBio })[r.dataset.go2]();
+       password: sheetPassword, bio: toggleBio, push: togglePush })[r.dataset.go2]();
   };
 }
 

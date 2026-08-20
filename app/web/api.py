@@ -29,6 +29,9 @@ from app.services import (
     hash_password, money, normalize_phone, qty_fmt, set_balance, staff_members,
     switch_shop, verify_password,
 )
+from app.push import (
+    drop_subscription, get_keys, save_subscription, send_to_users,
+)
 from app.web.auth import TgContext, get_context, make_token
 
 log = logging.getLogger("api")
@@ -56,6 +59,15 @@ async def notify(tg_id: int | None, text: str) -> None:
         await _bot.send_message(tg_id, text)
     except Exception as exc:
         log.warning("Xabar yuborilmadi (%s): %s", tg_id, exc)
+
+
+async def push_customer(session: AsyncSession, order, title: str, body: str) -> None:
+    """Buyurtma egasiga (mijozga) push yuboradi."""
+    ids = list(await session.scalars(
+        select(User.id).where(User.customer_id == order.customer_id)
+    ))
+    await send_to_users(session, ids, title, body,
+                        url="/app#myorders", tag=f"order-{order.id}")
 
 
 async def get_session() -> AsyncSession:
@@ -215,6 +227,33 @@ async def auth_password(payload: dict = Body(...),
         "user": {"id": user.id, "name": user.full_name, "role": user.role.value},
         "shop": {"id": shop.id, "name": shop.name},
     }
+
+
+@router.get("/push/key")
+async def push_key(session: AsyncSession = Depends(get_session)):
+    """Brauzer obuna bo'lishi uchun ochiq VAPID kaliti."""
+    public, _ = await get_keys(session)
+    return {"key": public}
+
+
+@router.post("/push/subscribe")
+async def push_subscribe(payload: dict = Body(...), c: TgContext = Depends(ctx),
+                         session: AsyncSession = Depends(get_session)):
+    user = await session.get(User, c.user.id)
+    try:
+        await save_subscription(session, user, payload.get("subscription") or payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"ok": True}
+
+
+@router.post("/push/unsubscribe")
+async def push_unsubscribe(payload: dict = Body(...), c: TgContext = Depends(ctx),
+                           session: AsyncSession = Depends(get_session)):
+    endpoint = (payload.get("endpoint") or "").strip()
+    if endpoint:
+        await drop_subscription(session, endpoint)
+    return {"ok": True}
 
 
 @router.post("/auth/change-password")
@@ -646,11 +685,19 @@ async def order_create(payload: dict = Body(...), c: TgContext = Depends(ctx),
     order = await fetch_order(session, order.id)
 
     lines = "\n".join(f"• {i.name} — {qty_fmt(i.qty)} {i.unit.value}" for i in order.items)
-    for member in await staff_members(session, shop.id):
+    staff = await staff_members(session, shop.id)
+    for member in staff:
         await notify(member.tg_id,
                      f"🆕 <b>Yangi buyurtma #{order.id}</b>\n"
                      f"👤 {customer.name}\n🗓 {order.needed_at or '—'}\n\n{lines}\n\n"
                      "Ilovadagi «Buyurtmalar» bo'limidan narxlang.")
+    await send_to_users(
+        session, [m.id for m in staff],
+        f"Yangi buyurtma #{order.id}",
+        f"{customer.name} · {len(order.items)} ta mahsulot"
+        + (f" · {order.needed_at}" if order.needed_at else ""),
+        url="/app#orders", tag=f"order-{order.id}",
+    )
     return s_order(order)
 
 
@@ -685,6 +732,9 @@ async def order_price(order_id: int, payload: dict = Body(...),
                  f"💵 <b>Buyurtma #{order.id} narxlandi</b>\n\n{lines}\n\n"
                  f"💰 Jami: <b>{money(total)} so'm</b>\n\n"
                  "Ilovani ochib tasdiqlang.")
+    await push_customer(session, order,
+                        f"Buyurtma #{order.id} narxlandi",
+                        f"Jami {money(total)} so'm · tasdiqlashingizni kutmoqda")
     return s_order(order)
 
 
@@ -733,6 +783,9 @@ async def order_schedule(order_id: int, payload: dict = Body(...),
     await notify(order.customer.tg_id,
                  f"🚚 Buyurtma #{order.id} yetkaziladi.\n"
                  f"⏰ Taxminiy vaqt: <b>{time_text}</b>\n📍 {order.address or '—'}")
+    await push_customer(session, order,
+                        f"Buyurtma #{order.id} yetkaziladi",
+                        f"Taxminiy vaqt: {time_text}")
     return s_order(order)
 
 

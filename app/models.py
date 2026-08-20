@@ -186,6 +186,31 @@ class MediaFile(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class KeyValue(Base):
+    """Kichik sozlamalar (masalan, push kalitlari) shu yerda saqlanadi."""
+
+    __tablename__ = "settings_kv"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+
+
+class PushSubscription(Base):
+    """Brauzer/PWA ning push manzili. Har bir qurilma uchun alohida yozuv."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    shop_id: Mapped[int | None] = mapped_column(
+        ForeignKey("shops.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    endpoint: Mapped[str] = mapped_column(Text, unique=True)
+    p256dh: Mapped[str] = mapped_column(String(255))
+    auth: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 # ------------------------- Katalog -------------------------
 
 class Supplier(Base):
