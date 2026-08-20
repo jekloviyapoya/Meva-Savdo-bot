@@ -1527,7 +1527,7 @@ function screenMore() {
         <div class="row-end">›</div></div>
       <div class="row" data-go2="push"><div class="thumb">${icon("info", 20)}</div>
         <div class="row-main"><div class="row-title">Bildirishnoma</div>
-          <div class="row-sub">yangi buyurtma haqida xabar</div></div>
+          <div class="row-sub" id="pushInfo">yangi buyurtma haqida xabar</div></div>
         <div class="row-end" id="pushState">…</div></div>
       <div class="row" data-go2="pushtest"><div class="thumb">${icon("check", 20)}</div>
         <div class="row-main"><div class="row-title">Sinov xabari</div>
@@ -1547,9 +1547,18 @@ function screenMore() {
     <p class="credit">${esc(ME.about.author)} — ${esc(ME.about.company)}</p>
   `);
   showInstallHint();
-  currentPushSub().then((sub) => {
+  currentPushSub().then(async (sub) => {
     const el = document.getElementById("pushState");
-    if (el) el.textContent = sub ? "yoqilgan" : "yoqish";
+    if (!el) return;
+    el.textContent = sub ? "yoqilgan" : "yoqish";
+    try {
+      const st = await api("/push/status");
+      const info = document.getElementById("pushInfo");
+      if (info) {
+        info.textContent = `${st.staff_devices} qurilma xabar oladi` +
+          (st.my_devices ? "" : " · bu qurilma obuna emas");
+      }
+    } catch (e) {}
   });
   view.onclick = (e) => {
     const r = e.target.closest("[data-go2]");

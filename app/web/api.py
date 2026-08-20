@@ -256,6 +256,27 @@ async def push_unsubscribe(payload: dict = Body(...), c: TgContext = Depends(ctx
     return {"ok": True}
 
 
+@router.get("/push/status")
+async def push_status(c: TgContext = Depends(ctx),
+                      session: AsyncSession = Depends(get_session)):
+    """Tashxis: kim obuna bo'lgan, xabar kimga ketadi."""
+    mine = len(list(await session.scalars(
+        select(PushSubscription).where(PushSubscription.user_id == c.user.id)
+    )))
+    staff = await staff_members(session, c.shop.id)
+    staff_ids = [m.id for m in staff]
+    staff_subs = len(list(await session.scalars(
+        select(PushSubscription).where(PushSubscription.user_id.in_(staff_ids))
+    ))) if staff_ids else 0
+    public, _ = await get_keys(session)
+    return {
+        "my_devices": mine,
+        "staff_count": len(staff),
+        "staff_devices": staff_subs,
+        "key": public[:12],
+    }
+
+
 @router.post("/push/test")
 async def push_test(c: TgContext = Depends(ctx),
                     session: AsyncSession = Depends(get_session)):
