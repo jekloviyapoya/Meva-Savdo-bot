@@ -40,7 +40,20 @@ app.include_router(api_router)
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.filters["money"] = money
-templates.env.globals.update(AUTHOR=AUTHOR, COMPANY=COMPANY, VERSION=VERSION)
+def _asset_version() -> str:
+    """app.js va app.css mazmuniga qarab belgi — yangilansa kesh o'zi almashadi."""
+    import hashlib
+
+    digest = hashlib.sha256()
+    for name in ("app.js", "app.css"):
+        path = BASE_DIR / "static" / name
+        if path.is_file():
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
+templates.env.globals.update(AUTHOR=AUTHOR, COMPANY=COMPANY, VERSION=VERSION,
+                             ASSET_V=_asset_version())
 
 @app.get("/app", response_class=HTMLResponse)
 @app.get("/webapp", response_class=HTMLResponse)

@@ -1,10 +1,9 @@
 /* Service worker — ilova qobig'ini keshlaydi.
    Muhim: API javoblari keshlanmaydi, aks holda eski ma'lumot ko'rinardi. */
-const CACHE = "nm-savdo-v9";
+const CACHE = "nm-savdo-v10";
+/* app.js va app.css qasddan keshlanmaydi: ular manzilida versiya belgisi bor,
+   ya'ni yangi deploy'dan keyin brauzer yangisini o'zi oladi. */
 const SHELL = [
-  "/app",
-  "/static/app.css",
-  "/static/app.js",
   "/static/icon-192.png",
   "/static/manifest.webmanifest",
 ];
@@ -25,6 +24,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/")) return;
+  if (url.pathname === "/app" || url.pathname.startsWith("/static/app.")) return;
 
   // Avval tarmoq — yangi versiya darhol yetib boradi; internet yo'q bo'lsa keshdan
   e.respondWith(
