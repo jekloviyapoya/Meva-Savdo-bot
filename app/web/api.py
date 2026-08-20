@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import AUTHOR, COMPANY, VERSION, settings
 from app.db import SessionMaker
 from app.models import (
-    MediaFile,
+    MediaFile, PushSubscription,
     Customer, DeliveryType, Invite, Ledger, LedgerType, Order, OrderItem,
     OrderStatus, PaymentMethod, Product, Role, Sale, SaleItem, Shop, Supplier,
     Unit, User, UserStatus,
@@ -254,6 +254,25 @@ async def push_unsubscribe(payload: dict = Body(...), c: TgContext = Depends(ctx
     if endpoint:
         await drop_subscription(session, endpoint)
     return {"ok": True}
+
+
+@router.post("/push/test")
+async def push_test(c: TgContext = Depends(ctx),
+                    session: AsyncSession = Depends(get_session)):
+    """O'ziga sinov xabari yuboradi — sozlash to'g'riligini tekshirish uchun."""
+    subs = await session.scalars(
+        select(PushSubscription).where(PushSubscription.user_id == c.user.id)
+    )
+    devices = len(list(subs))
+    if not devices:
+        raise HTTPException(400, "Bu qurilma hali obuna bo'lmagan")
+
+    sent = await send_to_users(
+        session, [c.user.id], "Sinov xabari",
+        "Bildirishnoma ishlayapti. Mijoz buyurtma berganda shunday xabar keladi.",
+        url="/app#orders", tag="test",
+    )
+    return {"devices": devices, "sent": sent}
 
 
 @router.post("/auth/change-password")

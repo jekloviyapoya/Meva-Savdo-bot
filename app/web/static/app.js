@@ -439,6 +439,15 @@ async function disablePush() {
   toast("Bildirishnoma o'chirildi");
 }
 
+async function sendTestPush() {
+  await guard(async () => {
+    const res = await api("/push/test", { method: "POST" });
+    toast(res.sent
+      ? `Yuborildi: ${res.sent}/${res.devices} qurilma`
+      : "Yuborilmadi — qurilma obunasi eskirgan bo'lishi mumkin", !res.sent);
+  });
+}
+
 async function togglePush() {
   const sub = await currentPushSub();
   if (sub) await disablePush(); else await enablePush();
@@ -1520,6 +1529,10 @@ function screenMore() {
         <div class="row-main"><div class="row-title">Bildirishnoma</div>
           <div class="row-sub">yangi buyurtma haqida xabar</div></div>
         <div class="row-end" id="pushState">…</div></div>
+      <div class="row" data-go2="pushtest"><div class="thumb">${icon("check", 20)}</div>
+        <div class="row-main"><div class="row-title">Sinov xabari</div>
+          <div class="row-sub">bildirishnoma kelishini tekshirish</div></div>
+        <div class="row-end">›</div></div>
       ${standalone && bioSupported() ? `
       <div class="row" data-go2="bio"><div class="thumb">${icon("check", 20)}</div>
         <div class="row-main"><div class="row-title">Biometrik kirish</div>
@@ -1545,7 +1558,8 @@ function screenMore() {
     ({ products: screenProducts, sales: screenSales, suppliers: sheetSuppliers,
        methods: sheetMethods, staff: screenStaff, license: sheetLicense,
        shops: sheetShops, about: sheetAbout, logout: logout,
-       password: sheetPassword, bio: toggleBio, push: togglePush })[r.dataset.go2]();
+       password: sheetPassword, bio: toggleBio, push: togglePush,
+       pushtest: sendTestPush })[r.dataset.go2]();
   };
 }
 
