@@ -27,7 +27,8 @@ from app.models import (
     Unit, User, UserStatus,
 )
 from app.services import (
-    apply_balance, create_invite, find_login, invite_link, managers, memberships,
+    apply_balance, create_invite, find_login, invite_link, is_blocked_everywhere,
+    managers, memberships,
     generate_password, hash_password, money, normalize_phone, qty_fmt,
     set_balance, staff_members,
     switch_shop, verify_password,
@@ -174,6 +175,8 @@ async def me(c: TgContext = Depends(ctx), session: AsyncSession = Depends(get_se
                "username": c.tg.get("username")},
         "linked": c.linked,
         "pending": bool(c.user and c.user.status == UserStatus.PENDING),
+        "blocked": (await is_blocked_everywhere(session, c.tg_id)) if c.tg_id and not c.user
+                   else bool(c.user and c.user.status == UserStatus.BLOCKED),
         "user": None if not c.user else {
             "id": c.user.id, "name": c.user.full_name, "phone": c.user.phone,
             "role": c.user.role.value, "is_staff": c.user.is_staff,

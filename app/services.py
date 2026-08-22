@@ -157,6 +157,17 @@ async def memberships(session: AsyncSession, tg_id: int) -> list[User]:
     ))
 
 
+async def all_memberships(session: AsyncSession, tg_id: int) -> list[User]:
+    """Holatidan qat'i nazar barcha yozuvlar — bloklanganini ham ko'rsatadi."""
+    return list(await session.scalars(select(User).where(User.tg_id == tg_id)))
+
+
+async def is_blocked_everywhere(session: AsyncSession, tg_id: int) -> bool:
+    """Foydalanuvchi qayerdadir bor, lekin hamma joyda rad etilganmi?"""
+    rows = await all_memberships(session, tg_id)
+    return bool(rows) and all(u.status == UserStatus.BLOCKED for u in rows)
+
+
 async def resolve_context(
     session: AsyncSession, tg_id: int
 ) -> tuple[Shop | None, User | None]:

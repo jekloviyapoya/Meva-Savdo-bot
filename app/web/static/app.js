@@ -124,6 +124,7 @@ async function boot() {
     </div>`);
     return;
   }
+  if (ME.blocked) return screenBlocked();
   if (!ME.linked) return ME.pending ? screenPending() : screenLogin();
   startApp();
 }
@@ -593,6 +594,19 @@ function screenLogin() {
     if (!ME.linked) return screenPending();
     startApp();
   });
+}
+
+/* Arizasi rad etilgan foydalanuvchi. */
+function screenBlocked() {
+  topbar.hidden = true; tabbar.hidden = true;
+  render(`<div class="center-screen">
+    <div class="logo">${icon("close", 34)}</div>
+    <h2>Kirish yopiq</h2>
+    <p style="color:var(--muted);margin:10px 0 0">
+      Arizangiz rad etilgan. Xato bo'lgan deb hisoblasangiz,
+      biznes egasiga murojaat qiling — u sizni qayta tasdiqlashi mumkin.</p>
+    <p class="credit">Ulug'bek Bekbergenov — NM GROUP</p>
+  </div>`);
 }
 
 function screenPending() {

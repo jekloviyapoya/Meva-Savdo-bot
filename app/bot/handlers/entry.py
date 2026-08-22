@@ -14,7 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import AUTHOR, COMPANY, VERSION, settings
 from app.models import Customer, Role, Shop, User, UserStatus
-from app.services import get_invite, managers, memberships, resolve_context
+from app.services import (
+    all_memberships, get_invite, is_blocked_everywhere, managers, memberships,
+    resolve_context,
+)
 
 router = Router()
 
@@ -54,9 +57,22 @@ async def start_invite(message: Message, command: CommandObject, bot: Bot,
         return
 
     shop = await session.get(Shop, invite.shop_id)
-    already = next((u for u in await memberships(session, message.from_user.id)
-                    if u.shop_id == shop.id), None)
-    if already:
+    existing = next((u for u in await all_memberships(session, message.from_user.id)
+                     if u.shop_id == shop.id), None)
+
+    if existing and existing.status == UserStatus.BLOCKED:
+        await message.answer(
+            f"🚫 «{shop.name}» sizning arizangizni rad etgan.\n\n"
+            "Havola orqali qayta kirib bo'lmaydi — biznes egasi sizni "
+            "ro'yxatdan qayta tiklashi kerak."
+        )
+        return
+
+    if existing and existing.status == UserStatus.PENDING:
+        await message.answer("⏳ Arizangiz allaqachon yuborilgan, tasdiq kutilmoqda.")
+        return
+
+    if existing:
         await message.answer(f"Siz allaqachon «{shop.name}» ga ulangansiz.",
                              reply_markup=open_kb())
         return
@@ -112,6 +128,15 @@ async def start(message: Message, session: AsyncSession):
 
     if user and user.status == UserStatus.PENDING:
         await message.answer("⏳ Arizangiz ko'rib chiqilmoqda. Tasdiqlangach xabar beramiz.")
+        return
+
+    # Rad etilgan bo'lsa ilova tugmasi ko'rsatilmaydi
+    if user is None and await is_blocked_everywhere(session, message.from_user.id):
+        await message.answer(
+            "🚫 <b>Arizangiz rad etilgan.</b>\n\n"
+            "Ilovaga kirish yopiq. Xato bo'lgan deb hisoblasangiz, "
+            "biznes egasiga murojaat qiling — u sizni qayta tasdiqlashi mumkin."
+        )
         return
 
     if user and shop:
