@@ -345,3 +345,11 @@ td.right, th.right { text-align: right; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* QR kod oynasi */
+.qr-box {
+  background: #fff; border-radius: var(--radius); padding: 14px;
+  display: grid; place-items: center; margin: 12px 0 4px;
+  border: 1px solid var(--line);
+}
+.qr-box img { width: 100%; max-width: 260px; height: auto; display: block; }

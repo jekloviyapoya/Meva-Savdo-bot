@@ -197,6 +197,37 @@ function showWebCreds(res) {
   };
 }
 
+/* Havola uchun QR: telefon kamerasi bilan o'qib, darhol botga kiradi. */
+function sheetQr(link, roleName) {
+  sheet(`
+    <h2>${esc(roleName || "Taklif")} havolasi</h2>
+    <p class="hint">Telefon kamerasini QR ga to'g'rilasa, bot ochiladi va
+      ariza sizga tasdiqlashga keladi.</p>
+    <div class="qr-box"><img id="qrImg" alt="QR kod"
+      src="/api/qr?text=${encodeURIComponent(link)}"></div>
+    <div class="card tight" style="margin:12px 0">
+      <div class="row" data-copy="${esc(link)}">
+        <div class="row-main"><div class="row-sub">Havola</div>
+          <div class="row-title" style="word-break:break-all;font-size:.9rem">${esc(link)}</div></div>
+        <div class="row-end">nusxa</div></div>
+    </div>
+    <button class="btn" id="qrShare">Havolani ulashish</button>
+  `);
+  sheetEl.onclick = (e) => {
+    const row = e.target.closest("[data-copy]");
+    if (!row) return;
+    if (navigator.clipboard) navigator.clipboard.writeText(row.dataset.copy).catch(() => {});
+    haptic(); toast("Nusxa olindi");
+  };
+  $("#qrShare", sheetEl).onclick = () => {
+    if (navigator.share) navigator.share({ title: "Taklif havolasi", url: link }).catch(() => {});
+    else if (navigator.clipboard) {
+      navigator.clipboard.writeText(link).catch(() => {});
+      toast("Nusxa olindi");
+    }
+  };
+}
+
 function sheetPassword() {
   sheet(`
     <h2>Parolni o'zgartirish</h2>
@@ -853,33 +884,68 @@ function sheetCartItem(product, index) {
     product_id: product.id, name: product.name, unit: product.unit,
     qty: 1, price: product.price || 0,
   };
+  const startSum = round2(Number(item.qty) * Number(item.price));
+
   sheet(`
     <h2>${esc(item.name)}</h2>
     <p class="hint">${esc(item.unit)} · ${product && product.price ? money(product.price) + " so'm" : "narx belgilanmagan"}</p>
+
+    <label>Sotish narxi (1 ${esc(item.unit)})</label>
+    <input id="price" type="number" inputmode="decimal" step="any" value="${item.price}">
+
     <label>Miqdor (${esc(item.unit)})</label>
     <div class="stepper">
       <button data-step="-1">−</button>
       <input id="qty" type="number" inputmode="decimal" step="any" value="${item.qty}">
       <button data-step="1">+</button>
     </div>
-    <label>Sotish narxi (1 ${esc(item.unit)})</label>
-    <input id="price" type="number" inputmode="decimal" step="any" value="${item.price}">
+
+    <label for="sum">Summa (tarozidagi chiqqan pul)</label>
+    <input id="sum" type="number" inputmode="decimal" step="any" value="${startSum || ""}"
+           placeholder="masalan 46 000">
+    <p class="hint">Summani yozsangiz miqdor o'zi hisoblanadi, miqdorni
+      yozsangiz summa o'zi chiqadi.</p>
+
     <div class="btn-row">
       <button class="btn line" data-close>Bekor</button>
       <button class="btn" id="save">Savatga</button>
     </div>
   `);
+
+  const qtyEl = $("#qty", sheetEl);
+  const priceEl = $("#price", sheetEl);
+  const sumEl = $("#sum", sheetEl);
+
+  /* Uchta maydon bir-biriga bog'langan: narx × miqdor = summa.
+     Foydalanuvchi qaysi birini yozsa, qolgani shundan hisoblanadi. */
+  const fromQty = () => {
+    const q = Number(qtyEl.value), p = Number(priceEl.value);
+    if (q >= 0 && p >= 0) sumEl.value = round2(q * p) || "";
+  };
+  const fromSum = () => {
+    const s = Number(sumEl.value), p = Number(priceEl.value);
+    if (s >= 0 && p > 0) qtyEl.value = round3(s / p);
+  };
+
+  qtyEl.oninput = fromQty;
+  sumEl.oninput = fromSum;
+  priceEl.oninput = () => {
+    // Narx o'zgarsa: summa kiritilgan bo'lsa miqdorni, aks holda summani yangilaymiz
+    if (Number(sumEl.value) > 0) fromSum(); else fromQty();
+  };
+
   sheetEl.onclick = (e) => {
     const step = e.target.closest("[data-step]");
     if (step) {
-      const inp = $("#qty", sheetEl);
-      inp.value = Math.max(0, (Number(inp.value) || 0) + Number(step.dataset.step));
+      qtyEl.value = Math.max(0, round3((Number(qtyEl.value) || 0) + Number(step.dataset.step)));
+      fromQty();
     }
     if (e.target.closest("[data-close]")) closeSheet();
   };
+
   $("#save", sheetEl).onclick = () => {
-    const q = Number($("#qty", sheetEl).value), p = Number($("#price", sheetEl).value);
-    if (!(q > 0)) return toast("Miqdorni kiriting", true);
+    const q = Number(qtyEl.value), p = Number(priceEl.value);
+    if (!(q > 0)) return toast("Miqdor yoki summani kiriting", true);
     if (!(p >= 0)) return toast("Narxni kiriting", true);
     const next = Object.assign({}, item, { qty: q, price: p });
     if (index != null) CART[index] = next; else CART.push(next);
@@ -887,6 +953,9 @@ function sheetCartItem(product, index) {
     if (TAB === "sale") drawSale(); else if (TAB === "catalog") screenCatalog();
   };
 }
+
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const round3 = (n) => Math.round((Number(n) || 0) * 1000) / 1000;
 
 async function sheetCheckout() {
   const methods = await api("/payment-methods");
@@ -1730,11 +1799,11 @@ async function screenStaff() {
 
       <div class="section-title">Taklif havolalari</div>
       <div class="card tight">${data.invites.map((i) => `
-        <div class="row" data-copy="${esc(i.link)}">
-          <div class="thumb">🔗</div>
+        <div class="row" data-qr="${esc(i.link)}" data-role="${esc(roleLabel(i.role))}">
+          <div class="thumb">${icon("link", 20)}</div>
           <div class="row-main"><div class="row-title">${roleLabel(i.role)} uchun</div>
             <div class="row-sub" style="word-break:break-all">${esc(i.link)}</div></div>
-          <div class="row-end">${i.uses} ta</div>
+          <div class="row-end">${i.uses} ta · QR</div>
         </div>`).join("") || `<div class="empty">${icon("link", 30)}Havola yaratilmagan</div>`}</div>
       <div class="btn-row">
         <button class="btn line" data-inv="seller">Sotuvchi</button>
@@ -1750,6 +1819,8 @@ async function screenStaff() {
         await api("/invites", { method: "POST", body: { role: inv.dataset.inv }});
         toast("Havola yaratildi"); screenStaff();
       });
+      const qr = e.target.closest("[data-qr]");
+      if (qr) { haptic(); return sheetQr(qr.dataset.qr, qr.dataset.role); }
       const copy = e.target.closest("[data-copy]");
       if (copy) {
         navigator.clipboard.writeText(copy.dataset.copy).then(() => toast("Havola nusxalandi"));

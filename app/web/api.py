@@ -11,7 +11,9 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
+from fastapi import (
+    APIRouter, Body, Depends, File, HTTPException, Request, Response, UploadFile,
+)
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -255,6 +257,31 @@ async def push_unsubscribe(payload: dict = Body(...), c: TgContext = Depends(ctx
     if endpoint:
         await drop_subscription(session, endpoint)
     return {"ok": True}
+
+
+@router.get("/qr")
+async def qr_code(text: str):
+    """Havola uchun QR kod (SVG).
+
+    Bu yo'l ochiq, chunki QR <img> orqali yuklanadi va rasm so'rovi maxsus
+    sarlavha yubora olmaydi. Suiiste'molning oldini olish uchun faqat shu
+    botning taklif havolalari kodlanadi — ixtiyoriy matn emas.
+    """
+    import io
+
+    import qrcode
+    import qrcode.image.svg
+
+    allowed = f"https://t.me/{settings.bot_username.lstrip('@')}"
+    if not text or len(text) > 200 or not text.startswith(allowed):
+        raise HTTPException(400, "Faqat taklif havolasi uchun")
+
+    img = qrcode.make(text, image_factory=qrcode.image.svg.SvgPathImage,
+                      box_size=10, border=2)
+    buf = io.BytesIO()
+    img.save(buf)
+    return Response(content=buf.getvalue(), media_type="image/svg+xml",
+                    headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.get("/push/status")
