@@ -1382,6 +1382,13 @@ function sheetOrder(id) {
     else if (o.status === "priced") actions = `<button class="btn line" data-op="price">${icon("edit", 18)} Narxni o'zgartirish</button>`;
     else if (o.status === "confirmed") actions = `<button class="btn" data-op="schedule">Yetkazish vaqtini belgilash</button>`;
     else if (o.status === "scheduled") actions = `<button class="btn" data-op="done">Yetkazildi</button>`;
+
+    // Mijoz tasdiqlashini kutmasdan ham yakunlash mumkin — do'kon mahsulotni
+    // qo'lma-qo'l bergan bo'lsa, buyurtmani shu yerda yopib qo'yadi.
+    if (!["done", "cancelled", "scheduled"].includes(o.status)) {
+      actions += `<div style="height:8px"></div>
+        <button class="btn line" data-op="done">${icon("check", 18)} Yakunlandi (savdoga o'tkazish)</button>`;
+    }
     if (!["done", "cancelled"].includes(o.status))
       actions += `<div style="height:8px"></div><button class="btn danger" data-op="cancel">Bekor qilish</button>`;
   }
@@ -1874,6 +1881,10 @@ function sheetUser(u) {
     ${u.status === "pending" ? `<button class="btn" data-st="approved">Tasdiqlash</button>
       <div style="height:8px"></div>
       <button class="btn danger" data-st="blocked">Rad etish</button>
+      <div style="height:14px"></div>` : ""}
+    ${u.status === "blocked" ? `
+      <p class="hint">Bu foydalanuvchi rad etilgan — ilovaga kira olmaydi.</p>
+      <button class="btn" data-st="approved">${icon("check", 18)} Tiklash</button>
       <div style="height:14px"></div>` : ""}
     <label>Rolini o'zgartirish</label>
     <select id="role">

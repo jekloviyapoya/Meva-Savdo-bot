@@ -900,9 +900,29 @@ async def order_done(order_id: int, c: TgContext = Depends(ctx),
     if order.status == OrderStatus.DONE:
         raise HTTPException(400, "Bu buyurtma allaqachon yakunlangan")
 
+    # Narxlanmagan buyurtma to'g'ridan-to'g'ri yakunlanayotgan bo'lsa,
+    # narxlarni mahsulot kartochkasidan olamiz — aks holda savdo nolga tushardi.
+    total = dec(order.total)
+    if total <= 0:
+        total = Decimal(0)
+        for item in order.items:
+            if not dec(item.price):
+                product = await session.get(Product, item.product_id) if item.product_id else None
+                if c.owns(product) and product.price is not None:
+                    item.price = dec(product.price)
+            item.amount = dec(item.qty) * dec(item.price)
+            total += item.amount
+        order.total = total
+        await session.flush()
+
+    if total <= 0:
+        raise HTTPException(
+            400, "Buyurtma narxlanmagan. Avval «Narxlash» orqali narx qo'ying."
+        )
+
     sale = Sale(shop_id=shop.id, customer_id=order.customer_id, seller_tg_id=c.tg_id,
-                seller_name=c.user.full_name, total=order.total, paid=Decimal(0),
-                debt=order.total, order_id=order.id,
+                seller_name=c.user.full_name, total=total, paid=Decimal(0),
+                debt=total, order_id=order.id,
                 comment=f"Buyurtma #{order.id} bo'yicha")
     session.add(sale)
     await session.flush()
@@ -915,7 +935,7 @@ async def order_done(order_id: int, c: TgContext = Depends(ctx),
             product.stock = dec(product.stock) - dec(item.qty)
 
     customer = await session.get(Customer, order.customer_id)
-    await apply_balance(session, customer, dec(order.total), LedgerType.ORDER,
+    await apply_balance(session, customer, total, LedgerType.ORDER,
                         f"Buyurtma #{order.id}", c.tg_id, sale_id=sale.id)
     order.status = OrderStatus.DONE
     await session.commit()
